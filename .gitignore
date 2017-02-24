@@ -1,0 +1,3 @@
+app_settings.py
+*.pyc
+app.wsgi
