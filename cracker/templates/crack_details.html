@@ -1,0 +1,293 @@
+{% extends "layout.html" %}
+{% block custom_head %}
+{% if task_state == 'PENDING' %}
+    <META http-equiv="refresh" content="20">
+{% endif %}
+{% endblock %}
+
+
+{% block body %}
+
+<script>
+function deleteConfirm(formId){
+    bootbox.dialog({
+        message: "Are you sure you want to cancel this crack? ",
+        title: "Cancel",
+        buttons: {
+            main: {
+                label: "Confirm",
+                className: "btn-primary",
+                callback: function() {
+                    document.getElementById(formId).submit()
+                }
+            }
+        }
+    })
+}
+
+$(function() {
+    $('#lengthbars').highcharts({
+        chart: {
+            type: 'column',
+            margin: 75,
+            options3d: {
+                enabled: true,
+                alpha: 5,
+                beta: 5,
+                depth: 70
+            }
+        },
+        exporting: {
+            enabled: false
+        },
+        title: {
+            text: 'Password length distribution'
+        },
+        plotOptions: {
+            column: {
+                depth: 25
+            }
+        },
+        xAxis: {
+            title: {
+                text: 'Number of characters'
+            },
+            categories: [0, 1]
+        },
+        yAxis: {
+            title: {
+                text: 'Number of passwords'
+            }
+        },
+        series: [{
+            name: ' ',
+            data: {{ length_distribution_list }}
+        }]
+    });
+});
+
+
+$(function() {
+    $('#remaining').highcharts({
+        chart: {
+            plotBackgroundColor: null,
+            plotBorderWidth: null,
+            plotShadow: false,
+            type: 'pie'
+        },
+        exporting: {
+            enabled: false
+        },
+        title: {
+            text: 'Completion status'
+        },
+
+        tooltip: {
+            pointFormat: '{series.name}: <b>{point.percentage:.1f}%</b>'
+        },
+        plotOptions: {
+            pie: {
+                allowPointSelect: true,
+                cursor: 'pointer',
+                dataLabels: {
+                    enabled: true,
+                    format: '<b>{point.name}</b>: {point.percentage:.1f} %',
+                    style: {
+                        color: (Highcharts.theme && Highcharts.theme.contrastTextColor) || 'black'
+                    }
+                }
+            }
+        },
+        series: [{
+            name: "Quantity",
+            data: [{
+                    name: "Cracked hashes",
+                    y: {{ percentage_diagram }}
+                },
+
+                {
+                    name: "Remaining hashes",
+                    y: (100 - {{ percentage_diagram}})
+                }
+            ]
+        }]
+    });
+});
+
+$(function() {
+    $('#charactertypes').highcharts({
+        chart: {
+            plotBackgroundColor: null,
+            plotBorderWidth: null,
+            plotShadow: false,
+            type: 'pie'
+        },
+        exporting: {
+            enabled: false
+        },
+        title: {
+            text: 'Passwords complexity'
+        },
+        subtitle: {
+            text: 'Number of character types found in recovered passwords'
+        },
+        tooltip: {
+            pointFormat: '{series.name}: <b>{point.percentage:.1f}%</b>'
+        },
+        plotOptions: {
+            pie: {
+                allowPointSelect: true,
+                cursor: 'pointer',
+                dataLabels: {
+                    enabled: true,
+                    format: '<b>{point.name}</b>: {point.percentage:.1f} %',
+                    style: {
+                        color: (Highcharts.theme && Highcharts.theme.contrastTextColor) || 'black'
+                    }
+                }
+            }
+        },
+        series: [{
+            name: "character classes",
+            colorByPoint: true,
+            data: [{
+                name: "1 character class",
+                y: {{ characters_complexity_list[0] }}
+            }, {
+                name: "2 character classes",
+                y: {{ characters_complexity_list[1] }},
+            }, {
+                name: "3 character classes",
+                y: {{ characters_complexity_list[2] }}
+            }, {
+                name: "4 character classes",
+                y: {{ characters_complexity_list[3] }}
+            }]
+        }]
+    });
+}); 
+</script>
+
+<!-- Crack status -->
+
+  {% if task_state == 0  %}
+    Status: Finished crack
+  {% elif task_state == 1 %}
+    Status: Ongoing crack
+  {% elif task_state == 2 %}
+    Status: Crack waiting to be launched (too many cracks at the moment). Please wait for others cracks to end in order to free resources.
+  {% elif task_state == 3 %}
+    Status: Cancelled crack
+  {% elif task_state == 4 %}
+    Status: Unknown status
+  {% elif task_state == 5 %}
+    Status: Failed crack<br />
+    Reason :  {{task_info}}
+  {% endif %}
+
+
+  <!-- Cancel an ongoing crack -->
+  {% if task_state == 1 or task_state == 2 %}
+    <form style="display:inline; margin-bottom: 0px;" action="/user/cracks/abort/{{ crack_id  }}" id="arret" method="POST">
+      <input name=_csrf_token type=hidden value="{{ csrf_token() }}">
+      <img src="{{ url_for('static', filename='img/red-cancel.png') }}" class="stopbutton" onclick='deleteConfirm("arret")' title="Cancel"/>
+    </form>
+
+  {% endif %}
+  
+
+  <!-- Display link to debug details -->
+
+    <div class="debuglink"><img src="{{ url_for('static', filename='img/question-mark.png') }}" /><a href="/user/cracks/{{ crack_id }}/debug" target="_blank">See hashcat detailled progress (debug)</a></div>
+
+<!-- Display crack details -->
+	 
+	 <div class="recoverypwd">Details</div>
+    <table id="datatable">
+      <thead>
+        <tr>
+          <th>Number of hash(es)</th>
+          <th>Hash type</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="prehash">
+          <td>{{ hashes_count }}</td>
+          <td>{{ hash_type }}</td>
+        </tr>
+      </tbody>
+    </table>
+  
+  <!-- Display the percentage of remaining passwords -->
+
+    <div id="remaining" style="min-width: 400px; height: 400px; max-width: 600px; max-height:400px; min-height:400px; margin: 0 auto"></div>
+    <hr>
+  
+  <!-- Display cracked passwords -->
+    
+    <div class="recoverypwd">
+        Recovered passwords
+        <a  class="btn btn-info btn-small" href="/user/cracks/{{ crack_id }}/csv" target="_blank" >
+            Download CSV
+        </a>
+    </div>
+
+    
+    <table id="datatable">
+      <thead>
+        <tr>
+          <th>Hash</th>
+          <th>Password</th>
+          <th>Number of lowercase letters</th>
+          <th>Number of uppercase letters</th>
+          <th>Number of digits</th>
+          <th>Number of special characters</th>
+          <th>Successful method</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% if crack_list | length == 0 %}
+        <tr class="prehash">
+          <td> - </td>
+          <td>No password recovered</td>
+          <td> - </td>
+          <td> - </td>
+          <td> - </td>
+          <td> - </td>
+          <td> - </td>
+        </tr>
+      {% endif %}  
+      {% for hash,password,lowercase,uppercase,digits,special,length,method in crack_list %}
+        <tr class="prehash">
+          <td>{{ hash }}</td>
+          <td>{{ password }}</td>
+          <td>{{ lowercase }}</td>
+          <td>{{ uppercase }}</td>
+          <td>{{ digits }}</td>
+          <td>{{ special }}</td>
+          <td>{{ method }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+
+  <!-- Display the passwords statistics -->
+    <hr>
+    <div id="graphcontent">
+      <div id="lengthbars" style="height: 400px"></div>
+      <hr>
+      <div id="charactertypes" style="min-width: 400px; height: 400px; max-width: 600px; max-height:400px; min-height:400px; margin: 0 auto"></div>
+    </div>
+
+   
+   <!-- Low delimitation -->
+    <div class="clear"></div>
+
+    <br />
+
+    <script type="text/javascript" src="{{ url_for('static',filename='highcharts.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static',filename='highcharts-3d.js') }}"></script>
+    <script type="text/javascript" src="{{ url_for('static',filename='exporting.js') }}"></script>
+
+
+{% endblock %}

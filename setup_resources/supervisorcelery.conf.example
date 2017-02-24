@@ -1,0 +1,10 @@
+[program:celery]
+command=/usr/local/bin/celery worker -A cracker.celery -Ofair --concurrency 8
+user=YOUR_LOCAL_USER_HERE
+environment=PYTHONPATH="/path/to/the/server/files/"
+directory=/path/to/the/server/files/outfiles/
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/celery.err.log
+stdout_logfile=/var/log/celery.out.log
+

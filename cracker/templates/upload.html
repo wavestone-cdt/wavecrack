@@ -1,0 +1,26 @@
+{% extends "layout.html" %}
+{% block body %}
+
+<p>The maximum supported size is {{max_size/(1024*1024)}} MB.
+<p>The supported extensions are: </p>
+<div class="extension_list">
+  <ul>
+    {% for extension in extension_list %}
+      <li>{{extension}}</li>
+    {% endfor %}
+  </ul>
+</div>
+<br />
+<p> To extract the hash of your protected file, select your file below. </p>
+<div class="example">Add file:</div>
+  <form  action="/upload/start" method=post id="uploadform"  enctype=multipart/form-data>
+    <input name=_csrf_token type=hidden form="uploadform" value="{{ csrf_token() }}">
+    <input type=file class="upload" name=file required>
+    <br />
+    <input type=submit class="btn btn-success" value=Upload>
+  </form>
+</div>
+
+
+{% endblock %}
+
