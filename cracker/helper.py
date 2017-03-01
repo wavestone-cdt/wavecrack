@@ -2,7 +2,7 @@
 # coding: utf8
 
 import app_settings as conf
-from flask import request, Response, g
+from flask import request, Response, g, render_template
 from functools import wraps
 from cracker.auth_module import check_auth
 from filters import hex_to_readable
