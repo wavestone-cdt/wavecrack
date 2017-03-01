@@ -51,15 +51,13 @@ def check_access_authorization_for_a_crack_id(username, crack_id):
     """
     cur = g.db.execute('select count(*) from cracks where crack_id=? and user_id=(select id from users where name = ?)',
                        (crack_id, username,))
-    if cur.fetchone()[0] < 1:
-        # The user tries to access unauthorized <crack_id>
-        cur.close()
-        return render_template(
-            'crack_details.html',
-            title=u'Unauthorized access',
-            characters_complexity_list=[0, 0, 0, 0]
-        )
+    is_allowed = cur.fetchone()[0]
     cur.close()
+    if is_allowed < 1:
+        # The user tries to access unauthorized <crack_id>
+        return False
+    else:
+        return True
 
 
 def parameters_getter(parameter, parameters_list, beginsWith=""):

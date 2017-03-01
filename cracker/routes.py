@@ -427,8 +427,13 @@ def crack_details(crack_id):
     """
         Get a crack details
     """
-    check_access_authorization_for_a_crack_id(
-        request.authorization.username.lower(), crack_id)
+    if not check_access_authorization_for_a_crack_id(
+        request.authorization.username.lower(), crack_id):
+        return render_template(
+            'crack_details.html',
+            title=u'Unauthorized access',
+            characters_complexity_list=[0, 0, 0, 0]
+        )
 
     # Retrieve the task from its id
     task = hashcatCrack.AsyncResult(crack_id)
@@ -531,8 +536,13 @@ def crack_debug(crack_id):
     """
         Hashcat log display
     """
-    check_access_authorization_for_a_crack_id(
-        request.authorization.username.lower(), crack_id)
+    if not check_access_authorization_for_a_crack_id(
+        request.authorization.username.lower(), crack_id):
+        return render_template(
+            'crack_details.html',
+            title=u'Unauthorized access',
+            characters_complexity_list=[0, 0, 0, 0]
+        )
 
     # Retrieve the output file name
     cur = g.db.execute(
@@ -558,8 +568,13 @@ def download_csv(crack_id):
     """
         Generate a csv file
     """
-    check_access_authorization_for_a_crack_id(
-        request.authorization.username.lower(), crack_id)
+    if not check_access_authorization_for_a_crack_id(
+        request.authorization.username.lower(), crack_id):
+        return render_template(
+            'crack_details.html',
+            title=u'Unauthorized access',
+            characters_complexity_list=[0, 0, 0, 0]
+        )
 
     # Retrieve the output file name
     cur = g.db.execute(
