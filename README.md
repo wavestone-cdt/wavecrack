@@ -66,7 +66,6 @@ $ pip install -r requirements.txt
         * port
         * LDAP database for the users
         * Base DN
-        * Bind user credentials  
   
 * Initialize the local database linked in the `cracker/app_settings.py` configuration file
 ```
@@ -93,6 +92,8 @@ $ celery worker -A cracker.celery
   
 * In order to stop the cracks after a certain amount of time, you can use the [`provided cron script`](setup_resources/cronscript.py).
   
+* If you want to update the list of hashes supported, you can use the [`dedicated script`](setup_resources/extract_hashcat_examples.py) which will parse [hashcat's wiki](https://hashcat.net/wiki/doku.php?id=example_hashes) and generate an updated [hashcat_hashes.py](cracker/hashcat_hashes.py). To do so, you need to have BeautifulSoup installed on your system.
+
 Finally, if you don't want to setup your own VM, you can use the Docker-based process described in the [`docker`](Docker/) folder.  
   
   

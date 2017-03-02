@@ -8,7 +8,7 @@ from cracker.auth_module import check_auth
 from filters import hex_to_readable
 import string
 from slugify import slugify
-import hashcat as hashcatconf
+import hashcat_hashes as hashcatconf
 
 def authenticate():
     """

@@ -23,7 +23,7 @@ from cracker.filters import hex_to_readable
 from cracker import hashID
 from cracker.helper import requires_auth, check_access_authorization_for_a_crack_id, parameters_getter, get_hash_type_from_hash_id, associate_LM_halves, generate_password_and_statistics_list
 from cracker.tasks import hashcatCrack
-import cracker.hashcat as hashcatconf
+import cracker.hashcat_hashes as hashcatconf
 
 
 def connect_db():
