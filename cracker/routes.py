@@ -21,7 +21,7 @@ from cracker import app, celery
 from cracker.crackstatus import running_crack_nb, get_crack_status
 from cracker.filters import hex_to_readable
 from cracker import hashID
-from cracker.helper import requires_auth, check_access_authorization_for_a_crack_id, parameters_getter, get_hash_type_from_hash_id, associate_LM_halves, generate_password_and_statistics_list
+from cracker.helper import requires_auth, check_access_authorization_for_a_crack_id, parameters_getter, get_hash_type_from_hash_id, associate_LM_halves, generate_password_and_statistics_list, get_memory_info
 from cracker.tasks import hashcatCrack
 import cracker.hashcat_hashes as hashcatconf
 
@@ -168,11 +168,25 @@ def global_state():
         Return an overview of the ongoing cracks
     """
     running_crack_list = running_crack_nb()
+    # Retrieve the GPU memory used for each crack (search by output file name)
+    total_memory_used, total_memory_free, total_memory, memory_per_crack = \
+        get_memory_info([_[4] for _ in running_crack_list])
+    
+    running_crack_list_and_memory = []
+    for crack in running_crack_list:
+        try:
+            running_crack_list_and_memory.append(crack + [memory_per_crack[crack[4]]])
+        except KeyError:
+            running_crack_list_and_memory.append(crack + [0])
+    
     return render_template(
         'crack_nb.html',
         title=u'Global status',
         MAX_CRACKSESSIONS=conf.MAX_CRACKSESSIONS,
-        running_crack_list=running_crack_list,
+        total_memory_used = total_memory_used,
+        total_memory_free = total_memory_free,
+        total_memory = total_memory,
+        running_crack_list=running_crack_list_and_memory,
         crack_count=len(running_crack_list)
     )
 

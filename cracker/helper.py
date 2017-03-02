@@ -9,6 +9,7 @@ from filters import hex_to_readable
 import string
 from slugify import slugify
 import hashcat_hashes as hashcatconf
+from subprocess import check_output, Popen, PIPE, CalledProcessError
 
 def authenticate():
     """
@@ -268,3 +269,55 @@ def unslugifyer(wordlist):
         if slugify(wl) == wordlist:
             return wl
     return wordlist
+
+    
+def get_memory_info(cracks_filenames=[]):
+    """
+        Retrieves Nvidia GPU memory information from the command nvidia-smi
+    """
+    total_memory_used, total_memory_free, total_memory = 0, 0, 0
+    memory_per_crack = {}
+    try:
+        nvidia_memory_info = check_output(["nvidia-smi", "--query-gpu=memory.used,memory.free,memory.total", "--format=csv,noheader,nounits"])
+        
+        for line in nvidia_memory_info.splitlines():
+            # split along commas and strip empty whitespaces
+            line = [ int(_.strip()) for _ in line.split(',')]
+            total_memory_used += line[0]
+            total_memory_free += line[1]
+            total_memory += line[2]
+    except CalledProcessError:
+        pass
+        
+    try:
+        nvidia_process_info = check_output(["nvidia-smi", "--query-compute-apps=pid,used_memory", "--format=csv,noheader,nounits"])
+        
+        memory_per_pid = {}
+        for line in nvidia_process_info.splitlines():
+            # split along commas and strip empty whitespaces
+            line = [ int(_.strip()) for _ in line.split(',')]
+            try:
+                memory_per_pid[line[0]] += line[1]
+            except KeyError:
+                memory_per_pid[line[0]] = line[1]
+            
+    except CalledProcessError:
+        pass
+        
+    for filename in cracks_filenames:
+        # Retrieve the PID from the filename 
+        ps_process = Popen(["ps", "auxww"], stdout=PIPE)
+        ps_output = Popen(["grep", conf.hashcat_location],
+                          stdin=ps_process.stdout, stdout=PIPE)
+        grep_output = check_output(
+            ["grep", filename], stdin=ps_output.stdout)
+        PID = int(grep_output.split()[1])
+        
+        # Populate the dictionary with the GPU memory used by each crack
+        try:
+            memory_per_crack[filename] = memory_per_pid[PID]
+        except KeyError:
+            memory_per_crack[filename] = 0
+        
+    return total_memory_used, total_memory_free, total_memory, memory_per_crack
+    

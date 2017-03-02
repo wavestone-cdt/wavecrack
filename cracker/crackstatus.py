@@ -32,7 +32,7 @@ def running_crack_nb():
             username = cur.fetchone()[0]
 
             running_crack_list.append(
-                [username, start_date, hash_name, crack_duration])
+                [username, start_date, hash_name, crack_duration, output_file])
 
     return running_crack_list
 
