@@ -163,7 +163,10 @@ def write_to_file_without_errors(string, file_handler):
         Self explanatory 
     """
     try:
-        file_handler.write(string)
+        # hashcat bug that writes gigbytes of "bug, how should this happen????" in the log files
+        # see https://github.com/hashcat/hashcat/blob/master/src/opencl.c#L1892
+        if not "bug, how should this happen????" in string:
+            file_handler.write(string)
     except Exception as e:
         pass
 
