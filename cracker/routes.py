@@ -21,7 +21,7 @@ from cracker import app, celery
 from cracker.crackstatus import running_crack_nb, get_crack_status
 from cracker.filters import hex_to_readable
 from cracker import hashID
-from cracker.helper import requires_auth, check_access_authorization_for_a_crack_id, parameters_getter, get_hash_type_from_hash_id, associate_LM_halves, generate_password_and_statistics_list, get_memory_info
+from cracker.helper import requires_auth, check_perms, parameters_getter, get_hash_type_from_hash_id, associate_LM_halves, generate_password_and_statistics_list, get_memory_info
 from cracker.tasks import hashcatCrack
 import cracker.hashcat_hashes as hashcatconf
 
@@ -370,17 +370,16 @@ def new_hashes_start():
                       crackDuration,
                       0))
         g.db.commit()
-        return render_template('launching.html', title=u'Crack launching', _id=crack_task.id)
+        return render_template('launching.html', title=u'Crack launching', _id=crack_task)
 
 
 @app.route('/user/cracks/abort/<crack_id>', methods=['POST'])
 @requires_auth
+@check_perms
 def abort_crack(crack_id):
     """
         Abord a crack
     """
-    check_access_authorization_for_a_crack_id(
-        request.authorization.username.lower(), crack_id)
 
     # Revoke function cancels unstarted task of this crack
     print("Calling `revoke` on task %s" % crack_id)
@@ -437,17 +436,11 @@ def list_of_cracks():
 
 @app.route('/user/cracks/<crack_id>', methods=['GET'])
 @requires_auth
+@check_perms
 def crack_details(crack_id):
     """
         Get a crack details
     """
-    if not check_access_authorization_for_a_crack_id(
-        request.authorization.username.lower(), crack_id):
-        return render_template(
-            'crack_details.html',
-            title=u'Unauthorized access',
-            characters_complexity_list=[0, 0, 0, 0]
-        )
 
     # Retrieve the task from its id
     task = hashcatCrack.AsyncResult(crack_id)
@@ -546,17 +539,11 @@ def crack_details(crack_id):
 
 @app.route('/user/cracks/<crack_id>/debug', methods=['GET'])
 @requires_auth
+@check_perms
 def crack_debug(crack_id):
     """
         Hashcat log display
     """
-    if not check_access_authorization_for_a_crack_id(
-        request.authorization.username.lower(), crack_id):
-        return render_template(
-            'crack_details.html',
-            title=u'Unauthorized access',
-            characters_complexity_list=[0, 0, 0, 0]
-        )
 
     # Retrieve the output file name
     cur = g.db.execute(
@@ -578,17 +565,11 @@ def crack_debug(crack_id):
 
 @app.route('/user/cracks/<crack_id>/csv', methods=['GET'])
 @requires_auth
+@check_perms
 def download_csv(crack_id):
     """
         Generate a csv file
     """
-    if not check_access_authorization_for_a_crack_id(
-        request.authorization.username.lower(), crack_id):
-        return render_template(
-            'crack_details.html',
-            title=u'Unauthorized access',
-            characters_complexity_list=[0, 0, 0, 0]
-        )
 
     # Retrieve the output file name
     cur = g.db.execute(

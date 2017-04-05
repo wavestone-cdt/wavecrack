@@ -64,10 +64,11 @@ class CrackMode():
             "--remove",
             "--remove-timer=30",
             "--restore-disable",
-            "--potfile-disable",
             "--logfile-disable",
-            "-a",
         ]
+        
+        if not conf.HASHCAT_DISABLE_POT_FILE:
+            self.common_parameters.append("--potfile-disable")
 
         try_number = 1
         return_code = None
@@ -93,6 +94,7 @@ class CrackMode():
 
         print("Finished cracking mode %s, return code is %s" %
               (self.name, return_code))
+
         return return_code
 
     def launch_call(self, *args, **kwargs):
@@ -144,7 +146,7 @@ class WordlistBasedCrackMode(CrackMode):
             extra_options += ["-r", conf.hashcat_rules_location + rule]
 
         return run_hashcat_safe(
-            self.common_parameters + ["0"] + extra_options + [
+            self.common_parameters + ['-a', '0'] + extra_options + [
                 self.options['hash_files'],
                 wordlist_file,
                 "-o", output_file,
@@ -162,7 +164,7 @@ class BruteforceCrackMode(CrackMode):
     def launch_call(self, output_file):
         return run_hashcat_safe(
             self.common_parameters + [
-                "3",
+                '-a', '3',
                 self.options['hash_files'],
                 "--increment",
                 "?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a",
@@ -195,7 +197,7 @@ class KeywordsCrackMode(CrackMode):
                 extra_options += ["-r", conf.hashcat_rules_location + rule]
 
             return run_hashcat_safe(
-                self.common_parameters + ["0"] + extra_options + [
+                self.common_parameters + ['-a', '0'] + extra_options + [
                     self.options['hash_files'],
                     keywords_listfile.name,
                     "-o", output_file
@@ -213,7 +215,7 @@ class MaskCrackMode(CrackMode):
     def launch_call(self, output_file, mask):
         return run_hashcat_safe(
             self.common_parameters + [
-                "3",
+                '-a', '3',
                 self.options['hash_files'],
                 mask,
                 "-o", output_file

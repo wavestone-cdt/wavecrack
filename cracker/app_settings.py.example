@@ -1,6 +1,10 @@
 #!/usr/bin/python
 # coding: utf8
 from collections import OrderedDict
+import os
+
+# Build paths inside the project like this: os.path.join(BASE_DIR, ...)
+BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 
 ###################################################################################
 ### MANDATORY SETTINGS 
@@ -15,7 +19,7 @@ celery_broker_url = 'amqp://guest:guest@0.0.0.0:5672//'
 celery_result_backend = 'db+sqlite:////path/to/celery/database/celery_results.sqlite'
 
 # Databases path
-database = '/path/to/app/database/base.db'
+database = os.path.join(BASE_DIR, 'database', 'base.db')
 
 # Hashcat executable path, by default '/usr/bin/hashcat' on Kali
 hashcat_location = '/path/to/hashcat/hashcat64.bin'
@@ -26,17 +30,17 @@ hashcat_rules_location = '/path/to/hashcat/rules/'
 # Hashcat rules list
 rule_name_list = ["rockyou-30000.rule"]
 
-# Wordlist directory path, by default '/usr/share/wordlists/' on Kali
+# Wordlist directory path, by default '/usr/share/wordlists/' on Kali   
 wordlists_location = '/path/to/wordlists/'
 
 # Dictonary of available wordlists
 wordlist_dictionary = OrderedDict([
     ('English dictionary','EngDict.txt'),
     ('French dictionary','FrDict.txt')
-    ])
+])
 
 # Input hashes directory path
-hashes_location = '/path/to/hashcat/hashes/written/'
+hashes_location = os.path.join(BASE_DIR, 'hashes', 'written')
 
 # Output hashcat directory path
 output_files_folder_location = '/path/to/output/folder/'
@@ -57,14 +61,16 @@ john_location = '/path/to/john-jumbo/run/'
 ###################################################################################
 
 # Should we document that option ? :)
-DEBUG = False
+DEBUG = True
 
 # Authentication settings, choose between "None", "Basic" and "LDAP"
 AUTH_TYPE = "None" 
 
 ## Basic Auth settings, define the sha256 password of the allowed users
-BASIC_AUTH_USERS = [["user1", "89e01536ac207279409d4de1e5253e01f4a1769e696db0d6062ca9b8f56767c8", "email1@email.com"],
-             ["user2", "89e01536ac207279409d4de1e5253e01f4a1769e696db0d6062ca9b8f56767c8", "email2@email.com"]]
+BASIC_AUTH_USERS = [
+    ["user1", "89e01536ac207279409d4de1e5253e01f4a1769e696db0d6062ca9b8f56767c8", "email1@email.com"],
+    ["user2", "89e01536ac207279409d4de1e5253e01f4a1769e696db0d6062ca9b8f56767c8", "email2@email.com"]
+]
 
 ## LDAP settings
 LDAP_HOST = "1.1.1.1"
@@ -80,6 +86,7 @@ separator = '~'
 # Maximal parallel cracking sessions
 MAX_CRACKSESSIONS = 8
 
+# Sleeping time when an Out Of Memory exception occured
 OOM_DELAY_SLEEP = 15 * 60
 
 # John dictionary/Useful to extract hash from files protected by password
@@ -101,3 +108,6 @@ ALLOWED_EXTENSIONS = set(extensions_dictionary.keys())
 
 # Crack durations timeout, in days
 CRACK_DURATIONS = [3,7,30]
+
+# Disable hashcat pot file, add "--potfile-disable" to hashcat command
+HASHCAT_DISABLE_POT_FILE = False

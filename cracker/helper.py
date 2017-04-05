@@ -45,6 +45,36 @@ def requires_auth(f):
             return f(*args, **kwargs)
     return decorated
 
+def check_perms(f):
+    """
+        Wrapper to check on each page the user permissions
+    """
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'crack_id' in kwargs:
+            auth = request.authorization
+            if not auth: return authenticate()
+
+            # Successful authentication
+            # Rewrite username with lower-case characters
+            auth_lower = auth.username.lower()
+
+            # The first argument is the crack_id
+            crack_id = kwargs['crack_id']
+
+            # Check user permission to handle this crack_id
+            if not check_access_authorization_for_a_crack_id(auth_lower, crack_id):
+                return render_template(
+                    'crack_details.html',
+                    title=u'Unauthorized access',
+                    characters_complexity_list=[0, 0, 0, 0]
+                )
+
+        return f(*args, **kwargs)
+    
+    return decorated
+
+
 
 def check_access_authorization_for_a_crack_id(username, crack_id):
     """ 
