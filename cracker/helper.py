@@ -238,7 +238,7 @@ def generate_password_and_statistics_list(filename, complete_hash_list, hash_typ
                         # Otherwise, just add the password and its stats to the
                         # list
                         else:
-                            if line[0] == hash:
+                            if line[0].lower() == hash.lower():
                                 line[1] = pwd
                                 line[2] = lower
                                 line[3] = upper
@@ -316,7 +316,7 @@ def get_memory_info(cracks_filenames=[]):
             total_memory_used += line[0]
             total_memory_free += line[1]
             total_memory += line[2]
-    except CalledProcessError:
+    except (OSError, CalledProcessError):
         pass
         
     try:
@@ -331,7 +331,7 @@ def get_memory_info(cracks_filenames=[]):
             except KeyError:
                 memory_per_pid[line[0]] = line[1]
             
-    except CalledProcessError:
+    except (OSError, CalledProcessError):
         pass
         
     for filename in cracks_filenames:
