@@ -1,0 +1,52 @@
+{% extends "layout.html" %}
+{% block body %}
+<h2> How to crack NTDS files ? </h2>
+<h3> How to get secretsdump ? </h3>
+<p> Secretsdump is a tool from <a href="https://github.com/CoreSecurity/impacket">Impacket</a>, a collection of Python classes working with network protocols.
+<br/>
+Secretsdump allows you to get hashes from the Active Directory database file ntds.dit in pwdump format.
+<br/>
+To use secretsdump, download <a href="https://github.com/CoreSecurity/impacket">Impacket</a>.
+</p>
+<h3> How to install it ? </h3>
+<p>
+Go to the impacket-master folder that you should just have downloaded and type:
+<br/>
+<B>python setup.py install</B>
+</p>
+<h3> How to use secretsdump ? </h3>
+<p> Considering you are in the folder containing secretsdump.py, a basic use is:
+<br/>
+<B>./secretsdump.py -ntds &lt;path/to/FILE.dit&gt; -system &lt;path/to/SYSTEM_file&gt; -outputfile &lt;path/to/name_of_your_output_file&gt; -just-dc-ntlm -history local</B>
+<br/>
+<br/>
+Some explanations:
+<ul>
+	<li><U>ntds:</U> ntds.dit file to parse</li>
+	<li><U>system:</U> system hive to parse</li>
+	<li><U>outputfile:</U> output file name</li>
+	<li><U>local:</U> to parse local file </li>
+	<li><U>just-dc-ntlm:</U> extract only ntlm hashes data</li>
+	<li>(optional) <U>history:</U> dump password history</li>
+</ul>
+<br/>
+Here an example (NTDS file, system file and secretsdump.py are in the same folder):
+<br/>
+<B>./secretsdump.py -ntds ntds.dit -system system -outputfile result -just-dc-ntlm -history local</B>
+<br/>
+<br/>
+The result is the creation of result.ntds in pwdump format in the current folder.
+<br/>
+<a href="https://blog.didierstevens.com/2016/07/30/video-ntds-dit-extract-hashes-with-secretsdump-py/">Here</a> is a demonstration video.
+<br/>
+</p>
+<h3> What's next ? </h3>
+</p>
+Transform your result.ntds into result.txt. And fill <a href="/add">this page</a> to launch the crack. Select 'pwdump' in 'Select the hash type'.
+<br/>
+The manual is accessible with <em>./secretsdump.py -h</em>
+</p>
+{% endblock %}
+
+
+

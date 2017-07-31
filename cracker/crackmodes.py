@@ -18,6 +18,8 @@ __all__ = [
     'BruteforceCrackMode',
     'KeywordsCrackMode',
     'MaskCrackMode',
+    'LmMadeWordlistBasedCrackMode',
+    'HybridCrackMode',
 ]
 
 
@@ -49,7 +51,7 @@ class CrackMode():
         #     . Option --status et --status-timer: Write crack status in a file regularly
         #     . Option --remove et --remove-timer: Remove of hash once it is cracked in input file
         #     . Option hashfile : Specify input hashes file
-        #     . Option wordlists_location + "wordlist.txt" : Specify wordlist to use
+        #     . Option wordlists_location + "wordlist.txt" :	 Specify wordlist to use
 
         # Common parameters list
         # Every crack use those parameters to launch hashcat
@@ -66,7 +68,7 @@ class CrackMode():
             "--restore-disable",
             "--logfile-disable",
         ]
-        
+
         if not conf.HASHCAT_DISABLE_POT_FILE:
             self.common_parameters.append("--potfile-disable")
 
@@ -94,7 +96,6 @@ class CrackMode():
 
         print("Finished cracking mode %s, return code is %s" %
               (self.name, return_code))
-
         return return_code
 
     def launch_call(self, *args, **kwargs):
@@ -135,7 +136,7 @@ class WordlistBasedCrackMode(CrackMode):
                 # If we found the required wordlist, we save the filename
                 wordlist_file = conf.wordlists_location + \
                     conf.wordlist_dictionary[wordlist_pair]
-
+        
         if not wordlist_file:
             raise ValueError("Unable to find wordlist %s!" % wordlist)
 
@@ -218,6 +219,46 @@ class MaskCrackMode(CrackMode):
                 '-a', '3',
                 self.options['hash_files'],
                 mask,
+                "-o", output_file
+            ],
+            self.options['output_file_name'],
+        )
+
+class LmMadeWordlistBasedCrackMode(CrackMode):
+    """
+        Crack mode using the wordlist built with the cracked LM hashes (this crackmode is only used in case of pwdump format).
+    """
+    name = 'LMwordlist'
+
+    def launch_call(self, output_file, wordlist, rule=None):
+
+        wordlist_file = wordlist
+
+        return run_hashcat_safe(
+            self.common_parameters + ['-a', '0'] + [
+                self.options['hash_files'],
+                wordlist_file,
+                "-o", output_file,
+            ],
+            self.options['output_file_name'],
+        )
+
+class HybridCrackMode(CrackMode):
+    """
+        Crack mode used for hybrid attack (Cf hybrid attack with hashcat). The wordlist used is the one built with the cracked LM hashes.  
+    """
+    name = 'hybrid'
+
+    def launch_call(self, output_file, wordlist):
+        wordlist_file = wordlist
+
+        return run_hashcat_safe(
+            self.common_parameters + [
+                '-a', '6',
+                self.options['hash_files'],
+                wordlist_file,
+                "--increment",
+                "?a?a",
                 "-o", output_file
             ],
             self.options['output_file_name'],

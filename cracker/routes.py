@@ -8,23 +8,22 @@ import string
 import glob
 import csv
 import StringIO
+import json
+import cracker.hashcat_hashes as hashcatconf
+
 from subprocess import call, check_output
 from time import strftime
-
 from werkzeug import secure_filename
 from flask import render_template, request, g, make_response
-
 from slugify import slugify
-
 import app_settings as conf
 from cracker import app, celery
 from cracker.crackstatus import running_crack_nb, get_crack_status
 from cracker.filters import hex_to_readable
 from cracker import hashID
-from cracker.helper import requires_auth, check_perms, parameters_getter, get_hash_type_from_hash_id, associate_LM_halves, generate_password_and_statistics_list, get_memory_info
+from cracker.helper import requires_auth, check_perms, parameters_getter, get_hash_type_from_hash_id, associate_LM_halves, generate_password_and_statistics_list, get_memory_info, checking_mask_form, checking_crackMode
 from cracker.tasks import hashcatCrack
-import cracker.hashcat_hashes as hashcatconf
-
+from cracker.log_parser import parse_log
 
 def connect_db():
     """
@@ -69,6 +68,19 @@ def home():
     )
 
 
+@app.route('/ntds_upload', methods=['GET'])
+@requires_auth
+def upload_ntds():
+    """
+        Upload NTDS files
+    """
+
+    return render_template(
+        'ntds_upload.html',
+        title=u'Uploading NTDS files'
+    )
+
+
 @app.route('/add', methods=['GET'])
 @requires_auth
 def new_hashes_form():
@@ -84,6 +96,7 @@ def new_hashes_form():
             liste_en_cours=running_crack_list,
             crack_count=len(running_crack_list)
         )
+
     else:
         return render_template(
             'add.html',
@@ -157,6 +170,7 @@ def upload_file():
 
         return render_template(
             'uploaded_file.html', title=u'Uploaded file', filext=filext, output_hash=output_hash)
+
     else:
         return upload_menu()
 
@@ -255,6 +269,18 @@ def new_hashes_validation():
     selectedMask = request.form['ChosenMask']
     selectedKeywords = request.form['ChosenKeyword']
 
+    #Check the mask form:
+    if not checking_mask_form(selectedMask):
+        return render_template(
+            'add.html',
+            title=u'Add new crack',
+            error=u'Wrong Mask form',
+            HASHS_LIST=hashcatconf.HASHS_LIST,
+            wordlist_dictionary=conf.wordlist_dictionary,
+            separator=conf.separator,
+            max_size=app.config['MAX_CONTENT_LENGTH'],
+            CRACK_DURATIONS=conf.CRACK_DURATIONS)
+
     parameters_getter('Keywords', optionList)
 
     if parameters_getter('Wordlist', optionList):
@@ -267,6 +293,18 @@ def new_hashes_validation():
 
     parameters_getter('Mask', optionList)
     parameters_getter('Bruteforce', optionList)
+
+    #Check that optionList is not empty
+    if not checking_crackMode(optionList):
+        return render_template(
+            'add.html',
+            title=u'Add new crack',
+            error=u'No attack mode selected',
+            HASHS_LIST=hashcatconf.HASHS_LIST,
+            wordlist_dictionary=conf.wordlist_dictionary,
+            separator=conf.separator,
+            max_size=app.config['MAX_CONTENT_LENGTH'],
+            CRACK_DURATIONS=conf.CRACK_DURATIONS)    
 
     crackDuration = int(request.form.get('ChosenDuration', ''))
     if crackDuration not in conf.CRACK_DURATIONS:
@@ -348,6 +386,47 @@ def new_hashes_start():
         string.ascii_uppercase + string.digits) for _ in range(6))
     output_file_name = output_file_name_prefix + output_file_name_suffix
 
+    # Crack option
+    crackOption = []
+    rules_list = []
+    rules_list = conf.rule_name_list
+    for option in optionList :
+        
+        if option == 'Keywords':
+            keywords_list = []
+            keywords_dict = {}
+            keywords_dict[option] = ["Not started", "", "", ""]
+            for rule in rules_list:
+                keywords_dict[rule] = ["Not started", "", "", ""]  
+            keywords_list = [option, keywords_dict]    
+            crackOption.append(keywords_list)
+
+        elif option == 'Wordlist':
+            wordlist_list = []
+            wordlist_dict = {}         
+            for wordlist in wordlistList:
+                wordlist_dict[wordlist] = ["Not started", "", "", ""]
+            wordlist_list = [option, wordlist_dict]
+            crackOption.append(wordlist_list)
+
+        elif option == 'WordlistVariations':
+            variation_list = []
+            variation_dict = {}
+            for wordlist in wordlistRulesList:
+                rule_dict = {}
+                for rule in rules_list:
+                    rule_dict[rule] = ["Not started", "", "", ""]
+                variation_dict[wordlist] = rule_dict
+            variation_list = [option, variation_dict]
+            crackOption.append(variation_list)
+
+        else:
+            option_dict = {}
+            option_dict[option] = ["Not started", "", "", ""]
+            crackOption.append([option, option_dict])
+
+    option = json.dumps(crackOption)
+
     running_crack_list = running_crack_nb()
     if len(running_crack_nb()) > conf.MAX_CRACKSESSIONS:
         return render_template('crack_nb.html', title=u'Launching error', MAX_CRACKSESSIONS=conf.MAX_CRACKSESSIONS,
@@ -370,6 +449,14 @@ def new_hashes_start():
                       crackDuration,
                       0))
         g.db.commit()
+
+        # Save crack options in the database
+        g.db.execute('insert into cracksOption (crack_id, user_id, options) values (?,(select id from users where name=?),?)',
+                     (crack_task.id,
+                      request.authorization.username.lower(),
+                      option))
+        g.db.commit()
+
         return render_template('launching.html', title=u'Crack launching', _id=crack_task)
 
 
@@ -464,78 +551,157 @@ def crack_details(crack_id):
     maximum_length = 0
     characters_complexity_list = [0, 0, 0, 0]
     percentage_diagram = 0
+    
+    if hash_type == "pwdump":
+        input_hash_file = os.path.join(conf.hashes_location, output_file_path) + 'pwdump'
+        complete_hash_list_NTLM = []
 
-    # Ongoing or terminated crack: output file reading
-    input_hash_file = os.path.join(conf.hashes_location, output_file_path)
-    complete_hash_list = []
-    try:
-        with open(input_hash_file, 'r') as hashes_file:
-            lines = hashes_file.read().splitlines()
-            for hash in lines:
-                # preparing for [hash, password, lower, upper, digits, special,
-                # length, method]
-                complete_hash_list.append(
-                    [hash, "*****PASSWORD NOT FOUND YET*****", None, None, None, None, None, None])
-    except IOError:
-        pass
+        try:
+            with open(input_hash_file, 'r') as hashes_file:
+                lines = hashes_file.read().splitlines()
+                for hash in lines:
+                    my_data = hash.split(":")
+                    if my_data[3] != "" or my_data[2] != "":
+                        # preparing for [hash, password, lower, upper, digits, special,
+                        # length, method]
+                        complete_hash_list_NTLM.append(
+                            [my_data[3], "*****PASSWORD NOT FOUND YET*****", my_data[2], "*****PASSWORD NOT FOUND YET*****", None, None, None, None, None, None, None])                  
+                        
+        except IOError:
+            pass
 
-    # Find all the files beginning with file content
-    result_files = glob.glob(output_file + '*')
-    # Add the file path itself in the list
-    result_files.append(output_file)
+        # Find all the files beginning with file content
+        result_files = glob.glob(output_file + '*')
+        # Add the file path itself in the list
+        result_files.append(output_file)
 
-    for file in result_files:
-        length = generate_password_and_statistics_list(
-            file, complete_hash_list, hash_type)
-        maximum_length = max(maximum_length, length)
+        for file in result_files:
+            if 'BruteForce_lm' in str(file):
+                length_useless = generate_password_and_statistics_list(
+                    file, complete_hash_list_NTLM, hash_type)  
+            else:
+                length = generate_password_and_statistics_list(
+                    file, complete_hash_list_NTLM, hash_type)
+                maximum_length = max(maximum_length, length)    
 
-    # Put the list of actual passwords found in passwords_list and generate
-    # global statistics
-    passwords_list = []
-    number_of_found_passwords = 0
-    # Initialize length_distribution with 0 values for all the possible lengths
-    length_distribution_list = [0] * (maximum_length + 1)
+        # Put the list of actual passwords found in passwords_list and generate
+        # global statistics
+        passwords_list_NTLM = []
+        number_of_found_passwords = 0
+        passwords_list_LM = []
 
-    for line in complete_hash_list:
-        hash, password, lower, upper, digits, special, length, method = line
-        if password != "*****PASSWORD NOT FOUND YET*****":
-            # removal of potential "*empty*" values in case of LM passwords
-            passwords_list.append([hash, password.replace(
-                "*empty*", ""), lower, upper, digits, special, length, method])
+        # Initialize length_distribution with 0 values for all the possible lengths
+        length_distribution_list = [0] * (maximum_length + 1)
 
-            # Complexity (lower chars, upper chars, digits, special chars)
-            characters_complexity_list[
-                sum([lower > 0, upper > 0, digits > 0, special > 0]) - 1] += 1
+        for line in complete_hash_list_NTLM:
+            hash_NTLM, password_NTLM, hash_LM, password_LM, lower, upper, digits, special, length, method_NTLM, method_LM = line
+            if password_NTLM != "*****PASSWORD NOT FOUND YET*****":
+                passwords_list_NTLM.append([hash_NTLM, password_NTLM, hash_LM,  password_LM.replace("*empty*", ""), lower, upper, digits, special, length, method_NTLM, method_LM])
+                # Complexity (lower chars, upper chars, digits, special chars)
+                characters_complexity_list[
+                    sum([lower > 0, upper > 0, digits > 0, special > 0]) - 1] += 1
 
-            # Number of found passwords
-            number_of_found_passwords += 1
+                # Number of found passwords
+                number_of_found_passwords += 1
 
-            # Consolidate the length of the password
-            length_distribution_list[length] += 1
+                # Consolidate the length of the password
+                length_distribution_list[length] += 1
 
-    # percentage_diagram : percent of cracked hashes
-    if len(complete_hash_list) > 0:
-        # the numerator or denominator has to be a float in order to get a
-        # float as a result
-        percentage_diagram = (number_of_found_passwords /
-                              float(len(complete_hash_list))) * 100
+        # percentage_diagram : percent of cracked hashes
+        if len(complete_hash_list_NTLM) > 0:
+            # the numerator or denominator has to be a float in order to get a
+            # float as a result
+            percentage_diagram = (number_of_found_passwords /
+                                  float(len(complete_hash_list_NTLM))) * 100
+        else:
+            percentage_diagram = 0
+
+        return render_template(
+            'crack_details.html',
+            title=u'Crack details',
+            task_info=task.info,
+            task_state=task_state,
+            crack_id=crack_id,
+            hashes_count=hashes_count,
+            hash_type=hash_type,
+            percentage_diagram=percentage_diagram,
+            length_distribution_list=length_distribution_list,
+            characters_complexity_list=characters_complexity_list,
+            crack_list_pwdump=passwords_list_NTLM
+        )
+
     else:
-        percentage_diagram = 0
+        # Ongoing or terminated crack: output file reading
+        input_hash_file = os.path.join(conf.hashes_location, output_file_path)
+        complete_hash_list = []
 
-    return render_template(
-        'crack_details.html',
-        title=u'Crack details',
-        task_info=task.info,
-        task_state=task_state,
-        crack_id=crack_id,
-        hashes_count=hashes_count,
-        hash_type=hash_type,
-        percentage_diagram=percentage_diagram,
-        length_distribution_list=length_distribution_list,
-        characters_complexity_list=characters_complexity_list,
-        crack_list=passwords_list
-    )
+        try:
+            with open(input_hash_file, 'r') as hashes_file:
+                lines = hashes_file.read().splitlines()
+                for hash in lines:
+                    # preparing for [hash, password, lower, upper, digits, special,
+                    # length, method]
+                    complete_hash_list.append(
+                        [hash, "*****PASSWORD NOT FOUND YET*****", None, None, None, None, None, None])   
+                  
+        except IOError:
+            pass
+ 
+        # Find all the files beginning with file content
+        result_files = glob.glob(output_file + '*')
+        # Add the file path itself in the list
+        result_files.append(output_file)
+        for file in result_files:
+            length = generate_password_and_statistics_list(
+                file, complete_hash_list, hash_type)
+            maximum_length = max(maximum_length, length)
 
+        # Put the list of actual passwords found in passwords_list and generate
+        # global statistics
+        passwords_list = []
+        number_of_found_passwords = 0
+        # Initialize length_distribution with 0 values for all the possible lengths
+        length_distribution_list = [0] * (maximum_length + 1)
+
+        for line in complete_hash_list:
+            hash, password, lower, upper, digits, special, length, method = line
+            if password != "*****PASSWORD NOT FOUND YET*****":
+                # removal of potential "*empty*" values in case of LM passwords
+                passwords_list.append([hash, password.replace(
+                    "*empty*", ""), lower, upper, digits, special, length, method])
+
+                # Complexity (lower chars, upper chars, digits, special chars)
+                characters_complexity_list[
+                    sum([lower > 0, upper > 0, digits > 0, special > 0]) - 1] += 1
+
+                # Number of found passwords
+                number_of_found_passwords += 1
+
+                # Consolidate the length of the password
+                length_distribution_list[length] += 1
+
+        # percentage_diagram : percent of cracked hashes
+        if len(complete_hash_list) > 0:
+            # the numerator or denominator has to be a float in order to get a
+            # float as a result
+            percentage_diagram = (number_of_found_passwords /
+                                  float(len(complete_hash_list))) * 100
+        else:
+            percentage_diagram = 0
+
+        return render_template(
+            'crack_details.html',
+            title=u'Crack details',
+            task_info=task.info,
+            task_state=task_state,
+            crack_id=crack_id,
+            hashes_count=hashes_count,
+            hash_type=hash_type,
+            percentage_diagram=percentage_diagram,
+            length_distribution_list=length_distribution_list,
+            characters_complexity_list=characters_complexity_list,
+            crack_list=passwords_list
+        )
 
 @app.route('/user/cracks/<crack_id>/debug', methods=['GET'])
 @requires_auth
@@ -544,7 +710,6 @@ def crack_debug(crack_id):
     """
         Hashcat log display
     """
-
     # Retrieve the output file name
     cur = g.db.execute(
         'select output_file from cracks where crack_id=?', [crack_id])
@@ -554,13 +719,28 @@ def crack_debug(crack_id):
         with open(os.path.join(conf.log_location, output_file_name + ".log"), 'r+') as log_file:
             # Read the log file
             logs = log_file.read()
-
+        
     except IOError:
         logs = ""
 
+    #Retrieve crackOption
+    #The crack modes selected to launch hashcat are retrieved from the DB
+    try:
+        cur = g.db.execute(
+            'select options from cracksOption where crack_id=?', [crack_id])
+        option = cur.fetchone()[0] 
+        crackOption = json.loads(option)
+    
+        parse_log(output_file_name, crackOption)
+
+
+    except:
+        crackOption = ''
+        pass
+    print 'crack_option {}'.format(crackOption)
     # contenu_debug
     return render_template(
-        'debug.html', title=u'Hashcat commands logs', debug_content=logs)
+        'debug.html', title=u'Hashcat commands logs', debug_content=logs, crackOption=crackOption)
 
 
 @app.route('/user/cracks/<crack_id>/csv', methods=['GET'])
@@ -582,46 +762,96 @@ def download_csv(crack_id):
 
     # Hash type
     hash_type = get_hash_type_from_hash_id(hash_type_id)
+    if hash_type == "pwdump":
+        # Read the cracked passwords
+        input_hash_file = os.path.join(conf.hashes_location, output_file_path) + 'pwdump'
+        complete_hash_list_pwdump = []
 
-    # Read the cracked passwords
-    input_hash_file = conf.hashes_location + str(output_file_path)
-    complete_hash_list = []
-    try:
-        with open(input_hash_file, 'r') as hashes_file:
-            lines = hashes_file.read().splitlines()
-            for hash in lines:
-                # Preparing for [hash, password, lower, upper, digits, special,
-                # length, method]
-                complete_hash_list.append(
-                    [hash, "*****PASSWORD NOT FOUND YET*****", 0, 0, 0, 0, 0, ""])
-    except IOError:
-        pass
+        try:
+            with open(input_hash_file, 'r') as hashes_file:
+                lines = hashes_file.read().splitlines()
 
-    # Find all the files beginning with file content
-    result_files = glob.glob(output_file + '*')
-    # Add the file path itself in the list
-    result_files.append(output_file)
+                for hash in lines:
+                    # Preparing for [hash, password, lower, upper, digits, special,
+                    # length, method]
+                    my_data = hash.split(":")
+                    if my_data[3] != "" or my_data[2] != "":
+                        complete_hash_list_pwdump.append(
+                            [my_data[3], "*****PASSWORD NOT FOUND YET*****", my_data[2], "*****PASSWORD NOT FOUND YET*****", None, None, None, None, None, None, None])
 
-    for file in result_files:
-        generate_password_and_statistics_list(
-            file, complete_hash_list, hash_type)
+        except IOError:
+            pass
 
-    csv_response = StringIO.StringIO()
-    csvwriter = csv.writer(csv_response, delimiter=';')
+        # Find all the files beginning with file content
+        result_files = glob.glob(output_file + '*')
+        # Add the file path itself in the list
+        result_files.append(output_file)
 
-    csv_header = ['Hash', 'Password', 'Length', 'Lowercase',
-                  'Uppercase', 'Digits', 'Special', 'Method']
-    csvwriter.writerow(csv_header)
+        for file in result_files:
+            generate_password_and_statistics_list(
+                file, complete_hash_list_pwdump, hash_type)
 
-    # Output the result in csv
-    for csv_row in complete_hash_list:
-        if csv_row[1] != "*****PASSWORD NOT FOUND YET*****":
-            csv_row[1] = csv_row[1].replace("*empty*", "")
+        csv_response = StringIO.StringIO()
+        csvwriter = csv.writer(csv_response, delimiter=';')
 
-        csvwriter.writerow(csv_row)
+        csv_header = ['Hash_NTLM', 'Password_NTLM', 'Hash_LM', 'Password_LM', 'Length', 'Lowercase',
+                      'Uppercase', 'Digits', 'Special', 'Method_NTLM', 'Method_LM']
+        csvwriter.writerow(csv_header)
 
-    response = make_response(csv_response.getvalue())
-    response.headers["Content-disposition"] = "attachment; filename=export.csv"
-    response.headers["Content-Type"] = "text/csv"
+        # Output the result in csv
+        for csv_row in complete_hash_list_pwdump:
+            if csv_row[1] != "*****PASSWORD NOT FOUND YET*****":
+                csv_row[1] = csv_row[1].replace("*empty*", "")
+            if csv_row[3] != "*****PASSWORD NOT FOUND YET*****":
+                csv_row[3] = csv_row[3].replace("*empty*", "")
+
+            csvwriter.writerow(csv_row)
+
+        response = make_response(csv_response.getvalue())
+        response.headers["Content-disposition"] = "attachment; filename=export.csv"
+        response.headers["Content-Type"] = "text/csv"
+
+    else:
+        # Read the cracked passwords
+        input_hash_file = conf.hashes_location + str(output_file_path)
+        complete_hash_list = []
+
+        try:
+            with open(input_hash_file, 'r') as hashes_file:
+                lines = hashes_file.read().splitlines()
+                for hash in lines:
+                    # Preparing for [hash, password, lower, upper, digits, special,
+                    # length, method]
+                    complete_hash_list.append(
+                        [hash, "*****PASSWORD NOT FOUND YET*****", 0, 0, 0, 0, 0, ""])
+
+        except IOError:
+            pass
+
+        # Find all the files beginning with file content
+        result_files = glob.glob(output_file + '*')
+        # Add the file path itself in the list
+        result_files.append(output_file)
+
+        for file in result_files:
+            generate_password_and_statistics_list(
+                file, complete_hash_list, hash_type)
+
+        csv_response = StringIO.StringIO()
+        csvwriter = csv.writer(csv_response, delimiter=';')
+
+        csv_header = ['Hash', 'Password', 'Length', 'Lowercase',
+                      'Uppercase', 'Digits', 'Special', 'Method']
+        csvwriter.writerow(csv_header)
+
+        # Output the result in csv
+        for csv_row in complete_hash_list:
+            if csv_row[1] != "*****PASSWORD NOT FOUND YET*****":
+                csv_row[1] = csv_row[1].replace("*empty*", "")
+            csvwriter.writerow(csv_row)
+
+        response = make_response(csv_response.getvalue())
+        response.headers["Content-disposition"] = "attachment; filename=export.csv"
+        response.headers["Content-Type"] = "text/csv"
 
     return response

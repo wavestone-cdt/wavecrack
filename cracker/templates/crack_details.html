@@ -222,54 +222,112 @@ $(function() {
 
     <div id="remaining" style="min-width: 400px; height: 400px; max-width: 600px; max-height:400px; min-height:400px; margin: 0 auto"></div>
     <hr>
-  
-  <!-- Display cracked passwords -->
-    
-    <div class="recoverypwd">
-        Recovered passwords
-        <a  class="btn btn-info btn-small" href="/user/cracks/{{ crack_id }}/csv" target="_blank" >
-            Download CSV
-        </a>
-    </div>
+    <!-- Display cracked passwords -->
+    {% if not crack_list_pwdump %}   
+        <div class="recoverypwd">
+            Recovered passwords
+            <a  class="btn btn-info btn-small" href="/user/cracks/{{ crack_id }}/csv" target="_blank" >
+                Download CSV
+            </a>
+        </div>
 
     
-    <table id="datatable">
-      <thead>
-        <tr>
-          <th>Hash</th>
-          <th>Password</th>
-          <th>Number of lowercase letters</th>
-          <th>Number of uppercase letters</th>
-          <th>Number of digits</th>
-          <th>Number of special characters</th>
-          <th>Successful method</th>
-        </tr>
-      </thead>
-      <tbody>
-      {% if crack_list | length == 0 %}
-        <tr class="prehash">
-          <td> - </td>
-          <td>No password recovered</td>
-          <td> - </td>
-          <td> - </td>
-          <td> - </td>
-          <td> - </td>
-          <td> - </td>
-        </tr>
-      {% endif %}  
-      {% for hash,password,lowercase,uppercase,digits,special,length,method in crack_list %}
-        <tr class="prehash">
-          <td>{{ hash }}</td>
-          <td>{{ password }}</td>
-          <td>{{ lowercase }}</td>
-          <td>{{ uppercase }}</td>
-          <td>{{ digits }}</td>
-          <td>{{ special }}</td>
-          <td>{{ method }}</td>
-        </tr>
-      {% endfor %}
-      </tbody>
-    </table>
+        <table id="datatable">
+          <thead>
+            <tr>
+              <th>Hash</th>
+              <th>Password</th>
+              <th>Number of lowercase letters</th>
+              <th>Number of uppercase letters</th>
+              <th>Number of digits</th>
+              <th>Number of special characters</th>
+              <th>Successful method</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% if crack_list | length == 0 %}
+            <tr class="prehash">
+              <td> - </td>
+              <td>No password recovered</td>
+              <td> - </td>
+              <td> - </td>
+              <td> - </td>
+              <td> - </td>
+              <td> - </td>
+            </tr>
+          {% endif %}  
+          {% for hash,password,lowercase,uppercase,digits,special,length,method in crack_list %}
+            <tr class="prehash">
+              <td>{{ hash }}</td>
+              <td>{{ password }}</td>
+              <td>{{ lowercase }}</td>
+              <td>{{ uppercase }}</td>
+              <td>{{ digits }}</td>
+              <td>{{ special }}</td>
+              <td>{{ method }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+    {% endif %}
+
+  <!-- Display LM cracked passwords for pwdump crack -->
+    {% if crack_list_pwdump %}
+        <div class="recoverypwd">
+            Recovered LM passwords
+            <a  class="btn btn-info btn-small" href="/user/cracks/{{ crack_id }}/csv" target="_blank" >
+                Download CSV
+            </a>
+        </div>
+
+    
+        <table id="datatable">
+          <thead>
+            <tr>
+              <th>NTLM Hash</th>
+              <th>NTLM Password_</th>
+              <th>LM Hash</th>
+              <th>LM Password</th>
+              <th>Number of lowercase letters</th>
+              <th>Number of uppercase letters</th>
+              <th>Number of digits</th>
+              <th>Number of special characters</th>
+              <th>Successful method for NTLM</th>
+              <th>Successful method for LM</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% if crack_list_pwdump | length == 0 %}
+            <tr class="prehash">
+              <td> - </td>
+              <td>No password recovered</td>
+              <td> - </td>
+              <td>No password recovered</td>
+              <td> - </td>
+              <td> - </td>
+              <td> - </td>
+              <td> - </td>
+              <td> - </td>
+              <td> - </td>
+            </tr>
+          {% endif %}  
+          {% for hash_NTLM,password_NTLM,hash_LM,password_LM,lowercase,uppercase,digits,special,length,method_NTLM,method_LM in crack_list_pwdump %}
+            <tr class="prehash">
+              <td>{{ hash_NTLM }}</td>
+              <td>{{ password_NTLM }}</td>
+              <td>{{ hash_LM }}</td>
+              <td>{{ password_LM }}</td>
+              <td>{{ lowercase }}</td>
+              <td>{{ uppercase }}</td>
+              <td>{{ digits }}</td>
+              <td>{{ special }}</td>
+              <td>{{ method_NTLM }}</td>
+              <td>{{ method_LM }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+    {% endif %}
 
   <!-- Display the passwords statistics -->
     <hr>

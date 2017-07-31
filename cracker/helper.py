@@ -43,6 +43,7 @@ def requires_auth(f):
                              auth_lower, check_auth(auth.username, auth.password)])
                 g.db.commit()
             return f(*args, **kwargs)
+
     return decorated
 
 def check_perms(f):
@@ -75,7 +76,6 @@ def check_perms(f):
     return decorated
 
 
-
 def check_access_authorization_for_a_crack_id(username, crack_id):
     """ 
         Control access of the user a specified crack_id 
@@ -99,6 +99,7 @@ def parameters_getter(parameter, parameters_list, beginsWith=""):
         if request.form[beginsWith + parameter]:
             parameters_list.append(parameter)
             return True
+
     except KeyError:
         return False
 
@@ -112,6 +113,7 @@ def get_hash_type_from_hash_id(hash_id):
         hash_struct_id, hash_struct_type, hash_struct_example = hash_struct
         if hash_id == hash_struct_id:
             hash_type = hash_struct_type
+
     return hash_type
 
 
@@ -119,12 +121,12 @@ def associate_LM_halves(line, hash, pwd, lower, upper, digits, special, method):
     """
         Tranfer cracking parameters across pages
     """
-    # Empty LM hash == "AAD3B435B51404EE"
     password_not_found = "*****PASSWORD NOT FOUND YET*****"
     empty_password = "*empty*"
     unknown_password = "???????"
 
     if line[0][0:16].lower() == "AAD3B435B51404EE".lower():
+
         if line[1] == password_not_found:
             line[1] = empty_password + unknown_password
             line[2] = 0
@@ -198,6 +200,7 @@ def write_to_file_without_errors(string, file_handler):
         # see https://github.com/hashcat/hashcat/blob/master/src/opencl.c#L1892
         if not "bug, how should this happen????" in string:
             file_handler.write(string)
+
     except Exception as e:
         pass
 
@@ -210,6 +213,7 @@ def generate_password_and_statistics_list(filename, complete_hash_list, hash_typ
     maximum_length = 0
     try:
         with open(filename, "r") as crack_result_file:
+
             for line in crack_result_file.readlines():
                 # Return separator index if found and -1 otherwise.
                 if line.rfind(conf.separator) > 0:
@@ -235,6 +239,25 @@ def generate_password_and_statistics_list(filename, complete_hash_list, hash_typ
                         if hash_type == "LM":
                             line = associate_LM_halves(
                                 line, hash, pwd, lower, upper, digits, special, method)
+
+                        # pwdump format treatment is special
+                        elif hash_type == "pwdump":
+                            if 'BruteForce_lm' in str(filename):
+                                line2 = [line[2], line[3], 0, 0, 0, 0, 0, line[10]]
+                                line2 = associate_LM_halves(
+                                    line2, hash, pwd, 0, 0, 0, 0, method)
+                                line[3] = line2[1]
+                                line[10] = line2[7]
+                            else:
+                                if line[0].lower() == hash.lower():
+                                    line[1] = pwd
+                                    line[4] = lower
+                                    line[5] = upper
+                                    line[6] = digits
+                                    line[7] = special
+                                    line[8] = len(pwd)
+                                    line[9] = method
+
                         # Otherwise, just add the password and its stats to the
                         # list
                         else:
@@ -254,9 +277,11 @@ def generate_password_and_statistics_list(filename, complete_hash_list, hash_typ
                     if hash_type == "LM":
                         maximum_length = 14
             crack_result_file.close()
+
     except IOError:
         # Exception : if no password has been found, the file doesn't exist
         pass
+
     return maximum_length
 
 
@@ -298,6 +323,7 @@ def unslugifyer(wordlist):
     for wl in conf.wordlist_dictionary:
         if slugify(wl) == wordlist:
             return wl
+
     return wordlist
 
     
@@ -316,6 +342,7 @@ def get_memory_info(cracks_filenames=[]):
             total_memory_used += line[0]
             total_memory_free += line[1]
             total_memory += line[2]
+
     except (OSError, CalledProcessError):
         pass
         
@@ -351,3 +378,14 @@ def get_memory_info(cracks_filenames=[]):
         
     return total_memory_used, total_memory_free, total_memory, memory_per_crack
     
+def checking_mask_form(var):
+    for car in var:
+        if car not in ['?', 'l','u','d','s','a','b', '']:
+            return False
+    return True
+
+def checking_crackMode(liste):
+    if len(liste)==0:
+        return False
+    else:
+        return True
