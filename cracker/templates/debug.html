@@ -1,5 +1,126 @@
 {% extends "layout.html" %}
 {% block body %}
+<p>
+  A clean hashcat status :<br /><br />
+  {%if crackOption != '' %}
+    {% for method, dict in crackOption %}
+
+      {%if method == 'BruteForce_lm' %}
+        - Bruteforce on LM hashes :<br />
+        {% for key in dict if key != 'BruteForce_lm'%}
+          &emsp;- {{ key }} character(s) :
+          (The method is {{ dict[key][0] }};
+          {%if dict[key][1] != '' %} 
+            &emsp;{{ dict[key][1] }} LM hashes have been cracked;
+          {% else %}
+            &emsp;We don't know how many LM hashes have been cracked (information not found in the log file);
+          {% endif %}
+          {%if dict[key][0] == 'Ongoing' %}
+            &emsp;Progress {{ dict[key][2] }}; &emsp;Time left: {{ dict[key][4] }}.<br />
+          {% endif %}
+          )<br />
+        {% endfor %}
+        <br />
+
+      {%elif method == 'Dict' %}
+        - Dictionnary attack :<br />
+          {% for key in dict%}
+            &emsp;- {{ key }}
+            (The method is {{ dict[key][0] }};
+            {%if dict[key][1] != '' %} 
+              &emsp;{{ dict[key][1] }} NTLM hashes have been cracked;
+            {% else %}
+              &emsp;We don't know how many hashes have been cracked (information not found in the log file);
+            {% endif %}
+            {%if dict[key][0] == 'Ongoing' %}
+              &emsp;Progress {{ dict[key][2] }}; &emsp;Time left: {{ dict[key][4] }}.
+            {% endif %}
+            )<br />
+          {% endfor %}
+          <br />
+
+      {%elif method == 'Keywords' %}
+        - Keywords :<br />
+        {% for key in dict%}
+          {%if key == 'Keywords' %}
+            &emsp;- {{ key }} method without any rules applied
+          {%else %}
+            &emsp;- {{ key }} applied on the keywords list
+          {% endif %}
+          (The method is {{ dict[key][0] }};
+          {%if dict[key][1] != '' %} 
+            &emsp;{{ dict[key][1] }} hashes have been cracked;
+          {% else %}
+            &emsp;We don't know how many hashes have been cracked (information not found in the log file);
+          {% endif %}
+          {%if dict[key][0] == 'Ongoing' %}
+            &emsp;Progress {{ dict[key][2] }}; &emsp;Time left: {{ dict[key][4] }}.
+          {% endif %}
+          )<br />
+        {% endfor %}
+      <br />
+
+      {%elif method == 'Wordlist' %}
+        - Wordlist :<br />
+        {% for key in dict%}
+          &emsp;- {{ key }}
+          (The method is {{ dict[key][0] }};
+          {%if dict[key][1] != '' %} 
+            &emsp;{{ dict[key][1] }} hashes have been cracked;
+          {% else %}
+            &emsp;We don't know how many hashes have been cracked (information not found in the log file);
+          {% endif %}
+          {%if dict[key][0] == 'Ongoing' %}
+            &emsp;Progress {{ dict[key][2] }}; &emsp;Time left: {{ dict[key][4] }}.
+          {% endif %}
+          )<br />
+        {% endfor %}
+      <br />
+
+      {%elif method == 'WordlistVariations' %}
+        - WordlistVariations :<br />
+        {% for key in dict%}
+          &emsp; - {{ key}} <br />
+          {% for key2 in dict[key]%}
+            &emsp;&emsp; - {{ key2 }} 
+            (The method is {{ dict[key][key2][0] }};
+            {%if dict[key][key2][1] != '' %} 
+              &emsp;{{ dict[key][key2][1] }} hashes have been cracked;
+            {% else %}
+              &emsp;We don't know how many hashes have been cracked (information not found in the log file);
+            {% endif %}
+            {%if dict[key][key2][0] == 'Ongoing' %}
+              &emsp;Progress {{ dict[key][key2][2] }}; &emsp;Time left: {{ dict[key][key2][4] }}.
+            {% endif %}
+            )<br />
+          {% endfor %}
+        {% endfor %}
+      <br />
+
+      {% elif method == 'Mask' or method == 'Bruteforce' %}
+        - {{ method }}: <br />
+          {% for key in dict if key != 'Bruteforce'%}
+            &emsp;- {{ key }}
+            {%if method == 'Bruteforce' %}
+              character(s)
+            {% endif %}:
+            (The method is {{ dict[key][0] }};
+            {%if dict[key][1] != '' %} 
+              &emsp;{{ dict[key][1] }} hashes have been cracked;
+            {% else %}
+              &emsp;We don't know how many hashes have been cracked (information not found in the log file);
+            {% endif %}
+            {%if dict[key][0] == 'Ongoing' %}
+              &emsp;Progress {{ dict[key][2] }}; &emsp;Time left: {{ dict[key][4] }}.<br />
+            {% endif %}
+            )<br />
+          {% endfor %}
+      <br /> 
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+</p>
+<br />
   Hashcat status&nbsp;:<br />
   <pre>{{ debug_content }}</pre>
 {% endblock %}

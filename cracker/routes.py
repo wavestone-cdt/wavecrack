@@ -390,6 +390,17 @@ def new_hashes_start():
     crackOption = []
     rules_list = []
     rules_list = conf.rule_name_list
+
+    #pwdump format needs specific option (cf tasks.py to understand pwdump crack algorithm)
+    if hashtype_selected == 999999:
+        pwdump_bruteforce_lm_dict = {}
+        pwdump_bruteforce_lm_dict['BruteForce_lm'] = ["Not started", "", "", ""]
+        crackOption.append(['BruteForce_lm', pwdump_bruteforce_lm_dict])
+
+        pwdump_wordlist_dict = {}
+        pwdump_wordlist_dict['Dict'] = ["Not started", "", "", ""]
+        crackOption.append(['Dict', pwdump_wordlist_dict])
+
     for option in optionList :
         
         if option == 'Keywords':
@@ -712,8 +723,9 @@ def crack_debug(crack_id):
     """
     # Retrieve the output file name
     cur = g.db.execute(
-        'select output_file from cracks where crack_id=?', [crack_id])
-    output_file_name = cur.fetchone()[0]
+        'select output_file, hash_type from cracks where crack_id=?', [crack_id])
+    output_file_name, hash_type = cur.fetchall()[0]
+
     try:
         # Building the log file name from output file name
         with open(os.path.join(conf.log_location, output_file_name + ".log"), 'r+') as log_file:
@@ -731,16 +743,16 @@ def crack_debug(crack_id):
         option = cur.fetchone()[0] 
         crackOption = json.loads(option)
     
-        parse_log(output_file_name, crackOption)
+        parse_log(output_file_name, crackOption, hash_type)
 
 
     except:
         crackOption = ''
         pass
-    print 'crack_option {}'.format(crackOption)
+
     # contenu_debug
     return render_template(
-        'debug.html', title=u'Hashcat commands logs', debug_content=logs, crackOption=crackOption)
+        'debug.html', title=u'Hashcat commands logs', debug_content=logs, crackOption=crackOption, hash_type=hash_type)
 
 
 @app.route('/user/cracks/<crack_id>/csv', methods=['GET'])
