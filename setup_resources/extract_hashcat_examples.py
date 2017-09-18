@@ -33,6 +33,9 @@ def grab_examples():
         
         if mode_text and hash_name_text and hash_example_text:
             result.append([int(mode_text), hash_name_text, hash_example_text])
+
+    # Manual add of the pwdump format
+    result.append([999999, "pwdump", "Administrator:500:F0D412BD764FFE81AAD3B435B51404EE:209C6174DA490CAEB422F3FA5A7AE634:::"])
     
     print '[+] %d hashes examples grabbed' % len(result)
     return result
