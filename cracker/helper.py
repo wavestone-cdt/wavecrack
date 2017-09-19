@@ -361,20 +361,23 @@ def get_memory_info(cracks_filenames=[]):
     except (OSError, CalledProcessError):
         pass
         
-    for filename in cracks_filenames:
-        # Retrieve the PID from the filename 
-        ps_process = Popen(["ps", "auxww"], stdout=PIPE)
-        ps_output = Popen(["grep", conf.hashcat_location],
-                          stdin=ps_process.stdout, stdout=PIPE)
-        grep_output = check_output(
-            ["grep", filename], stdin=ps_output.stdout)
-        PID = int(grep_output.split()[1])
-        
-        # Populate the dictionary with the GPU memory used by each crack
-        try:
-            memory_per_crack[filename] = memory_per_pid[PID]
-        except KeyError:
-            memory_per_crack[filename] = 0
+    try:
+        for filename in cracks_filenames:
+            # Retrieve the PID from the filename 
+            ps_process = Popen(["ps", "auxww"], stdout=PIPE)
+            ps_output = Popen(["grep", conf.hashcat_location],
+                              stdin=ps_process.stdout, stdout=PIPE)
+            grep_output = check_output(
+                ["grep", filename], stdin=ps_output.stdout)
+            PID = int(grep_output.split()[1])
+            
+            # Populate the dictionary with the GPU memory used by each crack
+            try:
+                memory_per_crack[filename] = memory_per_pid[PID]
+            except KeyError:
+                memory_per_crack[filename] = 0
+    except (OSError, CalledProcessError):
+        pass
         
     return total_memory_used, total_memory_free, total_memory, memory_per_crack
     
