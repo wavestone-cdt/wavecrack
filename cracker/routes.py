@@ -737,14 +737,17 @@ def crack_debug(crack_id):
 
     #Retrieve crackOption
     #The crack modes selected to launch hashcat are retrieved from the DB
-
-    cur = g.db.execute(
+    try:
+        cur = g.db.execute(
         'select options from cracksOption where crack_id=?', [crack_id])
-    option = cur.fetchone()[0] 
-    crackOption = json.loads(option, object_pairs_hook=OrderedDict)
+        option = cur.fetchone()[0] 
+        crackOption = json.loads(option, object_pairs_hook=OrderedDict)
 
-    parse_log(output_file_name, crackOption, hash_type)
-
+        parse_log(output_file_name, crackOption, hash_type)
+    except:
+        #backwards compatibility
+        crackOption = ''
+        pass
 
 
 

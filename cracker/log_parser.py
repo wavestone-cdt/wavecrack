@@ -18,61 +18,63 @@ def parse_log(output_file_name, crackOption, hash_type):
         # Separate all the crack runs
         for crack_run in cracks_iterator[1:]:
             crack_counter +=1
+            try:
+                ##########################################################################################################################
+                #  Extraction of the main information : Status, hash recovered, time remaining for the crack, Progress of the hash
+                ##########################################################################################################################
+                
+                # To check if the current crack is running, check if it's the last item of the list and if it doesn't end with "Stopped: ..."
+                if crack_counter == len(cracks_iterator) and "Stopped: " not in crack_run.splitlines()[-1]:
+                    is_currently_running = True
+                else:
+                    is_currently_running = False
+                
+                # Retrieving information regarding the crack mode in the filename of the first line
+                running_mode = crack_run.splitlines()[0].split('/')[-1]
+                
+                
+                method_arg = running_mode.split(':')
+                # Successful method value building
+                # XXXfilenameXXX:CrackMode:Wordlist/Mask used:Rule
+                # XXXfilenameXXX:method_arg[1]:method_arg[2]:method_arg[3]
+                has_rule = (len(method_arg) > 3)
+                
+                if has_rule:
+                    _, crackmode, wordlist_or_mask, rule = method_arg
+                else:
+                    _, crackmode, wordlist_or_mask = method_arg
+                
+                if crackmode == "Wordlist" and has_rule and rule != "":
+                    crackmode = "WordlistVariations"
+                
+                
+                
+                
+                amount_recovered = get_amount_recovered(crack_run)
+                progress_string = get_progress(crack_run)
+                time_estimated_string = get_time_estimated(crack_run)
+                
+                if crackmode == "Bruteforce" or crackmode == "BruteForce_lm":
+                    update_bruteforced_characters(crack_run, crackmode, crackOption)
+                
+                elif crackmode == "Keywords":
+                    for option in crackOption:
+                        if option[0] == crackmode:
+                            if has_rule and rule != "":
+                                option[1][rule] = format_output(is_currently_running, amount_recovered, progress_string, time_estimated_string)
+                            else:
+                                option[1][crackmode] = format_output(is_currently_running, amount_recovered, progress_string, time_estimated_string)
+                
+                else:
+                    for option in crackOption:
+                        if option[0] == crackmode:
+                            if has_rule and rule != "":
+                                option[1][wordlist_or_mask][rule] = format_output(is_currently_running, amount_recovered, progress_string, time_estimated_string)
+                            else:
+                                option[1][wordlist_or_mask] = format_output(is_currently_running, amount_recovered, progress_string, time_estimated_string)
             
-            ##########################################################################################################################
-            #  Extraction of the main information : Status, hash recovered, time remaining for the crack, Progress of the hash
-            ##########################################################################################################################
-            
-            # To check if the current crack is running, check if it's the last item of the list and if it doesn't end with "Stopped: ..."
-            if crack_counter == len(cracks_iterator) and "Stopped: " not in crack_run.splitlines()[-1]:
-                is_currently_running = True
-            else:
-                is_currently_running = False
-            
-            # Retrieving information regarding the crack mode in the filename of the first line
-            running_mode = crack_run.splitlines()[0].split('/')[-1]
-            
-            
-            method_arg = running_mode.split(':')
-            # Successful method value building
-            # XXXfilenameXXX:CrackMode:Wordlist/Mask used:Rule
-            # XXXfilenameXXX:method_arg[1]:method_arg[2]:method_arg[3]
-            has_rule = (len(method_arg) > 3)
-            
-            if has_rule:
-                _, crackmode, wordlist_or_mask, rule = method_arg
-            else:
-                _, crackmode, wordlist_or_mask = method_arg
-            
-            if crackmode == "Wordlist" and has_rule and rule != "":
-                crackmode = "WordlistVariations"
-            
-            
-            
-            
-            amount_recovered = get_amount_recovered(crack_run)
-            progress_string = get_progress(crack_run)
-            time_estimated_string = get_time_estimated(crack_run)
-            
-            if crackmode == "Bruteforce" or crackmode == "BruteForce_lm":
-                update_bruteforced_characters(crack_run, crackmode, crackOption)
-            
-            elif crackmode == "Keywords":
-                for option in crackOption:
-                    if option[0] == crackmode:
-                        if has_rule and rule != "":
-                            option[1][rule] = format_output(is_currently_running, amount_recovered, progress_string, time_estimated_string)
-                        else:
-                            option[1][crackmode] = format_output(is_currently_running, amount_recovered, progress_string, time_estimated_string)
-            
-            else:
-                for option in crackOption:
-                    if option[0] == crackmode:
-                        if has_rule and rule != "":
-                            option[1][wordlist_or_mask][rule] = format_output(is_currently_running, amount_recovered, progress_string, time_estimated_string)
-                        else:
-                            option[1][wordlist_or_mask] = format_output(is_currently_running, amount_recovered, progress_string, time_estimated_string)
-
+            except:
+                pass
 
     return 0
 
