@@ -95,3 +95,39 @@ def generate_csrf_token():
     return session['_csrf_token']
 
 app.jinja_env.globals['csrf_token'] = generate_csrf_token
+
+
+def is_current_bruteforce_attack_running(dict):
+    """
+        Retrieving information in the bruteforce log to know whether a bruteforce crack is still running
+    """
+    last_character_message = ''
+    for key in dict:
+        if key != 'Bruteforce':
+            last_character_message = dict[key]
+    if "finished" in last_character_message:
+        return True
+    else:
+        return False
+
+app.jinja_env.filters['is_current_bruteforce_attack_running'] = is_current_bruteforce_attack_running
+
+def is_method_not_started(value):
+    """
+        Parsing a log status to know if a crack method has already started
+    """
+    # The log parse returns [] if no information regarding a method was found
+    if value == []:
+        return "Method not started."
+    else:
+        return value
+
+app.jinja_env.filters['is_method_not_started'] = is_method_not_started
+
+def filter_len(value):
+    """
+        Returns the length of a value
+    """
+    return len(value)
+
+app.jinja_env.filters['len'] = filter_len

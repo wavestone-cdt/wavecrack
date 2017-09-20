@@ -24,6 +24,7 @@ from cracker import hashID
 from cracker.helper import requires_auth, check_perms, parameters_getter, get_hash_type_from_hash_id, associate_LM_halves, generate_password_and_statistics_list, get_memory_info, checking_mask_form, checking_crackMode
 from cracker.tasks import hashcatCrack
 from cracker.log_parser import parse_log
+from collections import OrderedDict
 
 def connect_db():
     """
@@ -388,52 +389,51 @@ def new_hashes_start():
 
     # Crack option
     crackOption = []
-    rules_list = []
     rules_list = conf.rule_name_list
 
     #pwdump format needs specific option (cf tasks.py to understand pwdump crack algorithm)
     if hashtype_selected == 999999:
-        pwdump_bruteforce_lm_dict = {}
-        pwdump_bruteforce_lm_dict['BruteForce_lm'] = ["Not started", "", "", ""]
+        pwdump_bruteforce_lm_dict = OrderedDict([])
+        pwdump_bruteforce_lm_dict['BruteForce_lm'] = []
         crackOption.append(['BruteForce_lm', pwdump_bruteforce_lm_dict])
 
-        pwdump_wordlist_dict = {}
-        pwdump_wordlist_dict['Dict'] = ["Not started", "", "", ""]
+        pwdump_wordlist_dict = OrderedDict([])
+        pwdump_wordlist_dict['Dict'] = []
         crackOption.append(['Dict', pwdump_wordlist_dict])
 
     for option in optionList :
         
         if option == 'Keywords':
             keywords_list = []
-            keywords_dict = {}
-            keywords_dict[option] = ["Not started", "", "", ""]
+            keywords_dict = OrderedDict([])
+            keywords_dict[option] = []
             for rule in rules_list:
-                keywords_dict[rule] = ["Not started", "", "", ""]  
+                keywords_dict[rule] = []  
             keywords_list = [option, keywords_dict]    
             crackOption.append(keywords_list)
 
         elif option == 'Wordlist':
             wordlist_list = []
-            wordlist_dict = {}         
+            wordlist_dict = OrderedDict([])
             for wordlist in wordlistList:
-                wordlist_dict[wordlist] = ["Not started", "", "", ""]
+                wordlist_dict[wordlist] = []
             wordlist_list = [option, wordlist_dict]
             crackOption.append(wordlist_list)
 
         elif option == 'WordlistVariations':
             variation_list = []
-            variation_dict = {}
+            variation_dict = OrderedDict([])
             for wordlist in wordlistRulesList:
-                rule_dict = {}
+                rule_dict = OrderedDict([])
                 for rule in rules_list:
-                    rule_dict[rule] = ["Not started", "", "", ""]
+                    rule_dict[rule] = []
                 variation_dict[wordlist] = rule_dict
             variation_list = [option, variation_dict]
             crackOption.append(variation_list)
 
         else:
-            option_dict = {}
-            option_dict[option] = ["Not started", "", "", ""]
+            option_dict = OrderedDict([])
+            option_dict[option] = []
             crackOption.append([option, option_dict])
 
     option = json.dumps(crackOption)
@@ -737,18 +737,16 @@ def crack_debug(crack_id):
 
     #Retrieve crackOption
     #The crack modes selected to launch hashcat are retrieved from the DB
-    try:
-        cur = g.db.execute(
-            'select options from cracksOption where crack_id=?', [crack_id])
-        option = cur.fetchone()[0] 
-        crackOption = json.loads(option)
-    
-        parse_log(output_file_name, crackOption, hash_type)
+
+    cur = g.db.execute(
+        'select options from cracksOption where crack_id=?', [crack_id])
+    option = cur.fetchone()[0] 
+    crackOption = json.loads(option, object_pairs_hook=OrderedDict)
+
+    parse_log(output_file_name, crackOption, hash_type)
 
 
-    except:
-        crackOption = ''
-        pass
+
 
     # contenu_debug
     return render_template(
