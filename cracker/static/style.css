@@ -396,3 +396,22 @@ tr.prehash {
     color: gray;
     text-align: center;
 }
+
+/* styles for the log parser */
+li.notstarted {
+    color: #A5A4AD;
+}
+
+li.finished {
+    color: #503078;
+}
+
+li.currentlyrunning {
+    color: #FAA916;
+    font-weight: bold;
+}
+
+li.cracked {
+    color: #66C605;
+    font-weight: bold;
+}

@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+
 {% block body %}
 <p>
   {%if crackOption != '' %}
@@ -9,35 +10,35 @@
         <li>Bruteforce attack on the LM hashes:
           <ul>
           {% for key in dict if key != 'BruteForce_lm' %}
-            <li>{{ key }} character{% if key > 1 %}s{% endif %} ({{ dict[key] }})</li>
+            <li class="{{ dict[key] | get_log_display_css }}">{{ key }} character{% if key > 1 %}s{% endif %} ({{ dict[key] }})</li>
           {% endfor %}
           {% if (dict | is_current_bruteforce_attack_running) %}
             <li>The bruteforce may still be ongoing, but no additional information is available in the logs.</li>
           {% endif %}
           
           {% if dict|len == 1 %}
-            <li>Bruteforce not started.</li>
+            <li class="nostarted">Bruteforce not started.</li>
           {% endif %}
           </ul>
         </li>
 
       {%elif method == 'Dict' %}
-        <li>Recovering the NTLM hashes with the help of the cracked LM passwords (case variation):
-          {% for key in dict if key != 'Dict' %}
+        {% for key in dict if key != 'Dict' %}
+          <li class="{{ dict[key] | get_log_display_css }}">Recovering the NTLM hashes with the help of the cracked LM passwords (case variation):
             {{ dict[key] }}
-          {% endfor %}
-        </li>
+          </li>
+        {% endfor %}
 
       {%elif method == 'Keywords' %}
         <li>Keywords attack:
           <ul>
           {% for wordlist_or_rule in dict%}
             {%if wordlist_or_rule == 'Keywords' %}
-              <li>Keywords without any rules ({{ dict[wordlist_or_rule] | is_method_not_started }})</li>
+              <li class="{{ dict[wordlist_or_rule] | get_log_display_css }}">Keywords without any rules ({{ dict[wordlist_or_rule] | is_method_not_started }})</li>
               <li>Keywords with rules:
                 <ul>
             {%else %}
-                  <li>{{ wordlist_or_rule }} ({{ dict[wordlist_or_rule] | is_method_not_started }})</li>
+                  <li class="{{ dict[wordlist_or_rule] | get_log_display_css }}">{{ wordlist_or_rule }} ({{ dict[wordlist_or_rule] | is_method_not_started }})</li>
             {% endif %}
           {% endfor %}
                 </ul>
@@ -50,7 +51,7 @@
         <li>Wordlist(s) attack:
           <ul>
           {% for wordlist in dict%}
-            <li>{{ wordlist}} ({{ dict[wordlist] | is_method_not_started }})</li>
+            <li class="{{ dict[wordlist] | get_log_display_css }}">{{ wordlist | unslugify_template }} ({{ dict[wordlist] | is_method_not_started }})</li>
           {% endfor %}
           </ul>
         </li>
@@ -58,12 +59,12 @@
       
       {%elif method == 'WordlistVariations' %}
         <li>Wordlist(s) attack with variations:
-        <ul>
+        <ul class="list">
         {% for wordlist in dict%}
-          <li>{{ wordlist}} 
+          <li>{{ wordlist | unslugify_template }} 
             <ul>
             {% for rule in dict[wordlist]%}
-              <li>{{ rule }} ({{ dict[wordlist][rule] | is_method_not_started }})</li>
+              <li class="{{ dict[wordlist][rule] | get_log_display_css }}">{{ rule }} ({{ dict[wordlist][rule] | is_method_not_started }})</li>
             {% endfor %}
             </ul>
           </li>
@@ -73,24 +74,24 @@
       <br />
       
       {% elif method == 'Mask' %}
-        <li>Mask attack:
-          {% for key in dict if key != 'Mask' %}
+        {% for key in dict if key != 'Mask' %}
+        <li class="{{ dict[key] | get_log_display_css }}">Mask attack:
             {{ dict[key] }}
-          {% endfor %}
         </li>
+        {% endfor %}
       
       {% elif method == 'Bruteforce' %}
         <li>Bruteforce attack:
         <ul>
           {% for key in dict if key != 'Bruteforce'%}
-            <li>{{ key }} character{% if key > 1 %}s{% endif %} ({{ dict[key] }})</li>
+            <li class="{{ dict[key] | get_log_display_css }}">{{ key }} character{% if key > 1 %}s{% endif %} ({{ dict[key] }})</li>
           {% endfor %}
           {% if (dict | is_current_bruteforce_attack_running) %}
             <li>The bruteforce may still be ongoing, but no additional information is available in the logs.</li>
           {% endif %}
           
           {% if dict|len == 1 %}
-            <li>Bruteforce not started.</li>
+            <li class="notstarted">Bruteforce not started.</li>
           {% endif %}
         </ul>
         </li>
@@ -99,8 +100,6 @@
     </ul>
   {% endif %}
 </p>
-<br />
-  Hashcat status&nbsp;:<br />
-  <pre>{{ debug_content }}</pre>
+
 {% endblock %}
 

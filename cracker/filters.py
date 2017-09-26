@@ -27,16 +27,6 @@ def format_datetime(value):
 
 app.jinja_env.filters['datetime'] = format_datetime
 
-
-def slugify_template(value):
-    """
-        Convert any string to normalized string
-    """
-    return slugify(value)
-
-app.jinja_env.filters['slugify_template'] = slugify_template
-
-
 def hex_to_readable(value):
     """
         Convert a hexadecimal string to a latin1 string
@@ -51,6 +41,23 @@ def hex_to_readable(value):
 
 app.jinja_env.filters['hex_to_readable'] = hex_to_readable
 
+def slugify_template(value):
+    """
+        Convert any string to normalized string
+    """
+    return slugify(value)
+
+app.jinja_env.filters['slugify_template'] = slugify_template
+
+from helper import unslugifyer
+
+def unslugify_template(value):
+    """
+        Convert any normalized string to the initial string value
+    """
+    return unslugifyer(value)
+
+app.jinja_env.filters['unslugify_template'] = unslugify_template
 
 @app.before_request
 def csrf_protect():
@@ -123,6 +130,29 @@ def is_method_not_started(value):
         return value
 
 app.jinja_env.filters['is_method_not_started'] = is_method_not_started
+
+def get_log_display_css(value):
+    """
+        Parsing a log status to get the associated css
+    """
+    # The log parse returns [] if no information regarding a method was found
+    if value == []:
+        # Not started
+        return "notstarted"
+    elif "Unknown amount" in value or ". 0/" in value:
+        # No hashes cracked for this step
+        if "finished" in value:
+            # Finished
+            return "finished"
+        elif "currently running" in value:
+            # Currently running
+            return "currentlyrunning"
+        else:
+            return ""
+    else:
+        return "cracked"
+
+app.jinja_env.filters['get_log_display_css'] = get_log_display_css
 
 def filter_len(value):
     """
