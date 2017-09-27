@@ -123,7 +123,7 @@ def is_method_not_started(value):
     """
         Parsing a log status to know if a crack method has already started
     """
-    # The log parse returns [] if no information regarding a method was found
+    # The log parser returns [] if no information regarding a method was found
     if value == []:
         return "Method not started."
     else:
@@ -139,7 +139,7 @@ def get_log_display_css(value):
     if value == []:
         # Not started
         return "notstarted"
-    elif "Unknown amount" in value or ". 0/" in value:
+    elif "Unknown amount" in value or "\r\n0/" in value:
         # No hashes cracked for this step
         if "finished" in value:
             # Finished
@@ -161,3 +161,14 @@ def filter_len(value):
     return len(value)
 
 app.jinja_env.filters['len'] = filter_len
+
+def separate_lines(value):
+    """
+        Splits a string according to the occurence of \r\n
+    """
+    if value.endswith("\r\n"):
+        return value.split("\r\n")[:-1]
+    else:
+        return value.split("\r\n")
+
+app.jinja_env.filters['separate_lines'] = separate_lines

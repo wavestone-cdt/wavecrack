@@ -726,6 +726,9 @@ def crack_debug(crack_id):
         'select output_file, hash_type from cracks where crack_id=?', [crack_id])
     output_file_name, hash_type = cur.fetchall()[0]
 
+    # Retrieval of the crack status based on the crack id and the output file
+    task_state = get_crack_status(crack_id, output_file_name)
+    
     try:
         # Building the log file name from output file name
         with open(os.path.join(conf.log_location, output_file_name + ".log"), 'r+') as log_file:
@@ -753,7 +756,7 @@ def crack_debug(crack_id):
 
     # contenu_debug
     return render_template(
-        'debug.html', title=u'Hashcat commands logs', debug_content=logs, crackOption=crackOption, hash_type=hash_type)
+        'debug.html', title=u'Hashcat commands logs', debug_content=logs, crackOption=crackOption, hash_type=hash_type, task_state=task_state)
 
 
 @app.route('/user/cracks/<crack_id>/csv', methods=['GET'])

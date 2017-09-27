@@ -3,6 +3,7 @@
 
 import os
 import time
+from datetime import datetime
 import app_settings as conf
 
 def parse_log(output_file_name, crackOption, hash_type):
@@ -53,6 +54,8 @@ def parse_log(output_file_name, crackOption, hash_type):
                 amount_recovered = get_amount_recovered(crack_run)
                 progress_string = get_progress(crack_run)
                 time_estimated_string = get_time_estimated(crack_run)
+                time_started = get_time_started(crack_run)
+                time_stopped = get_time_stopped(crack_run)
                 
                 if crackmode == "Bruteforce" or crackmode == "BruteForce_lm":
                     update_bruteforced_characters(crack_run, crackmode, crackOption)
@@ -61,17 +64,17 @@ def parse_log(output_file_name, crackOption, hash_type):
                     for option in crackOption:
                         if option[0] == crackmode:
                             if has_rule and rule != "":
-                                option[1][rule] = format_output(is_currently_running, amount_recovered, progress_string, time_estimated_string)
+                                option[1][rule] = format_time(time_started, time_stopped) + format_output(is_currently_running, amount_recovered, progress_string, time_estimated_string)
                             else:
-                                option[1][crackmode] = format_output(is_currently_running, amount_recovered, progress_string, time_estimated_string)
+                                option[1][crackmode] = format_time(time_started, time_stopped) + format_output(is_currently_running, amount_recovered, progress_string, time_estimated_string)
                 
                 else:
                     for option in crackOption:
                         if option[0] == crackmode:
                             if has_rule and rule != "":
-                                option[1][wordlist_or_mask][rule] = format_output(is_currently_running, amount_recovered, progress_string, time_estimated_string)
+                                option[1][wordlist_or_mask][rule] = format_time(time_started, time_stopped) + format_output(is_currently_running, amount_recovered, progress_string, time_estimated_string)
                             else:
-                                option[1][wordlist_or_mask] = format_output(is_currently_running, amount_recovered, progress_string, time_estimated_string)
+                                option[1][wordlist_or_mask] = format_time(time_started, time_stopped) + format_output(is_currently_running, amount_recovered, progress_string, time_estimated_string)
             
             except:
                 pass
@@ -84,14 +87,14 @@ Returns either unknown or the amount recovered depending on whether the informat
 def return_amount_recovered(amount_recovered, progress_string, time_estimated_string):
 
     if amount_recovered == "":
-        amount_recovered = "Unknown amount of passwords recovered."
+        amount_recovered = "Unknown amount of passwords recovered.\r\n"
     else:
-        amount_recovered = amount_recovered + " passwords recovered."
+        amount_recovered = amount_recovered + " passwords recovered.\r\n"
     
     if progress_string == "" or progress_string == "100%":
         progress_string = ""
     else:
-        progress_string = " Number of combinations tested for this method " + progress_string + "."
+        progress_string = "Number of combinations tested for this method " + progress_string + ".\r\n"
         
     
     if time_estimated_string == "":
@@ -103,10 +106,36 @@ def return_amount_recovered(amount_recovered, progress_string, time_estimated_st
     
 def format_output(is_currently_running, amount_recovered, progress_string, time_estimated_string):
     if is_currently_running:
-        return "Method currently running. " + return_amount_recovered(amount_recovered, progress_string, time_estimated_string)
+        return "Method currently running.\r\n" + return_amount_recovered(amount_recovered, progress_string, time_estimated_string)
     else:
-        return "Method finished. " + return_amount_recovered(amount_recovered, progress_string, time_estimated_string)
+        return "Method finished.\r\n" + return_amount_recovered(amount_recovered, progress_string, time_estimated_string)
         
+
+def format_time(time_started, time_stopped):
+    if time_started is None:
+        return "Time started unknown.\r\n"
+    else:
+        if time_stopped is None:
+            return "Time started " + time_started.strftime('%Y-%m-%d %H:%M:%S') + ".\r\n"
+        else:
+            time_delta = time_stopped - time_started
+            time_delta = int(time_delta.total_seconds())
+            d = divmod(time_delta,86400)  # days
+            h = divmod(d[1],3600)  # hours
+            m = divmod(h[1],60)  # minutes
+            s = m[1]  # seconds
+            time_delta_string = ""
+            if d[0] > 0:
+                time_delta_string += str(d[0]) + " days, "
+            if h[0] > 0:
+                time_delta_string += str(h[0]) + " hours, "
+            if m[0] > 0:
+                time_delta_string += str(m[0]) + " minutes, "
+            if s >= 0:
+                time_delta_string += str(s) + " seconds.\r\n"
+            return "Time started " + time_started.strftime('%Y-%m-%d %H:%M:%S') + ".\r\nTime spent for this task: " + time_delta_string
+        
+
 def get_amount_recovered(chunk):
     # Get the amount of passwords recovered
     # Example: "Recovered......: 0/1 (0.00%) Digests, 0/1 (0.00%) Salts"
@@ -139,6 +168,39 @@ def get_time_estimated(chunk):
         time_estimated_string = ""
     return time_estimated_string
     
+    
+def get_time_started(chunk):
+    # Get the time object corresponding to the start time
+    if "Started:" in chunk:
+        time_string = chunk.rsplit("Started: ",1)[1].splitlines()[0]
+        # Pad the day of the monthe with a 0 instead of a space if the day of the month is before the 10th
+        # Example Tue Sep  5 16:52:23 2017 -> Tue Sep 05 16:52:23 2017
+        time_array = time_string.split(" ")
+        if len(time_array) == 6:
+            time_string = time_string.replace("  "," 0")
+        
+        # Convert to time object (example Tue Sep 26 16:52:23 2017)
+        time_datetime = datetime.strptime(time_string, '%a %b %d %H:%M:%S %Y')
+    else:
+        time_datetime = None
+    return time_datetime
+
+def get_time_stopped(chunk):
+    # Get the time object corresponding to the stop time
+    if "Stopped:" in chunk:
+        time_string = chunk.rsplit("Stopped: ",1)[1].splitlines()[0]
+        # Pad the day of the monthe with a 0 instead of a space if the day of the month is before the 10th
+        # Example Tue Sep  5 16:52:23 2017 -> Tue Sep 05 16:52:23 2017
+        time_array = time_string.split(" ")
+        if len(time_array) == 6:
+            time_string = time_string.replace("  "," 0")
+        
+        # Convert to time object (example Tue Sep 26 16:52:23 2017)
+        time_datetime = datetime.strptime(time_string, '%a %b %d %H:%M:%S %Y')
+    else:
+        time_datetime = None
+    return time_datetime
+    
 def update_bruteforced_characters(chunk, crackmode, crackOption):
     # Get the number of characters tested
     # Example: Input.Mode.....: Mask (?a?a?a?a?a?a) [6]
@@ -152,10 +214,12 @@ def update_bruteforced_characters(chunk, crackmode, crackOption):
             amount_recovered = get_amount_recovered(input_mode)
             progress_string = get_progress(input_mode)
             time_estimated_string = get_time_estimated(input_mode)
+            time_started = get_time_started(input_mode)
+            time_stopped = get_time_stopped(input_mode)
             
             for option in crackOption:
                 if option[0] == crackmode:
-                    option[1][int(number_of_characters_bruteforced)] = format_output(False, amount_recovered, progress_string, time_estimated_string)
+                    option[1][int(number_of_characters_bruteforced)] = format_time(time_started, time_stopped) + format_output(False, amount_recovered, progress_string, time_estimated_string)
         
         # The last input string is possibly running 
         if "Exhausted" or "Cracked" in input_modes[-2]:
@@ -169,7 +233,9 @@ def update_bruteforced_characters(chunk, crackmode, crackOption):
         amount_recovered = get_amount_recovered(input_mode)
         progress_string = get_progress(input_mode)
         time_estimated_string = get_time_estimated(input_mode)
+        time_started = get_time_started(input_mode)
+        time_stopped = get_time_stopped(input_mode)
         
         for option in crackOption:
             if option[0] == crackmode:
-                option[1][int(number_of_characters_bruteforced)] = format_output(last_bruteforce_mode_is_currently_running, amount_recovered, progress_string, time_estimated_string)
+                option[1][int(number_of_characters_bruteforced)] = format_time(time_started, time_stopped) + format_output(last_bruteforce_mode_is_currently_running, amount_recovered, progress_string, time_estimated_string)
