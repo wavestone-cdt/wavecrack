@@ -346,10 +346,10 @@ def get_memory_info(cracks_filenames=[]):
     except (OSError, CalledProcessError):
         pass
         
+    memory_per_pid = {}
     try:
         nvidia_process_info = check_output(["nvidia-smi", "--query-compute-apps=pid,used_memory", "--format=csv,noheader,nounits"])
         
-        memory_per_pid = {}
         for line in nvidia_process_info.splitlines():
             # split along commas and strip empty whitespaces
             line = [ int(_.strip()) for _ in line.split(',')]
