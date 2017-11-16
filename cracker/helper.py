@@ -294,9 +294,9 @@ def get_method_from_filename(filename):
     method_arg = filename.split(':')
     # Successful method value building
     # XXXfilenameXXX:CrackMode:Wordlist/Mask used:Rule
-    # XXXfilenameXXX:method_arg[2]:method_arg[3]:method_arg[4]
+    # XXXfilenameXXX:method_arg[1]:method_arg[2]:method_arg[3]
 
-    if len(method_arg) == 4:
+    if len(method_arg) == 4 and method_arg[3] != "":
         # if rules
         _, crackmode, wordlist, _ = method_arg
         if crackmode == "Wordlist":
@@ -304,6 +304,14 @@ def get_method_from_filename(filename):
                 "\n(" + unslugifyer(wordlist) + ")"
         else:
             method = "Keywords with variations"
+
+    elif len(method_arg) == 4 and method_arg[3] == "":
+        _, crackmode, wordlist, _ = method_arg
+        if crackmode == "Wordlist":
+            method = "Wordlist" + \
+                "\n(" + unslugifyer(wordlist) + ")"
+        else:
+            method = crackmode
 
     elif len(method_arg) == 3:
         _, crackmode, wordlist = method_arg
