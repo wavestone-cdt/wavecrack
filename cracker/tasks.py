@@ -201,30 +201,29 @@ def makeDict(output_file_name, hashes_storage_LM, output_file_lm, myDictName, ne
 
     with open(output_file_lm, 'r') as lm, open(hashes_storage_LM, 'r') as storage_LM, open(myDictName, 'w') as myDict, open(newDictName, 'w') as newDict:
         half_LMhash= lm.read()
-        LMhash_dictionary={}
+        cracked_LMhash_dictionary={}
         toWrite1=""
         toWrite2=""
         toWrite=""
 
         #Making the python dictionary
         for line in iter(half_LMhash.splitlines()):
-            my_data= line.split(conf.separator)
-            LMhash_dictionary[my_data[0].lower()]=my_data[1].lower()
+            half_lm_hash, half_lm_password = line.split(conf.separator)
+            cracked_LMhash_dictionary[half_lm_hash.lower()] = half_lm_password.lower()
 
         #Making the file dictionary
         storage_LM.seek(0)
-        full_LMhash=storage_LM.read()
+        full_LMhash_input = storage_LM.read()
         #To avoid duplicate hash in the dict
         avoiding_duplicate_hash=[]
 
-        for line in iter(full_LMhash.splitlines()):
-            my_data= line.split()
-            if my_data[0].lower() not in avoiding_duplicate_hash:
-                avoiding_duplicate_hash.append(my_data[0].lower()) 
-                if my_data[0][:16].lower() in LMhash_dictionary:
-                    toWrite1= LMhash_dictionary[my_data[0][:16].lower()]
-                    if my_data[0][16:]!="":
-                        toWrite2 = LMhash_dictionary[my_data[0][16:].lower()]
+        for line in iter(full_LMhash_input.splitlines()):
+            if line.lower() not in avoiding_duplicate_hash:
+                avoiding_duplicate_hash.append(line.lower()) 
+                if line[:16].lower() in cracked_LMhash_dictionary:
+                    toWrite1= cracked_LMhash_dictionary[line[:16].lower()]
+                    if line[16:]!="" and line[16:] in cracked_LMhash_dictionary:
+                        toWrite2 = cracked_LMhash_dictionary[line[16:].lower()]
                     else:
                         toWrite2 = ""
                     toWrite = toWrite1 + toWrite2 + "\n"
