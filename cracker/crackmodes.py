@@ -57,7 +57,6 @@ class CrackMode():
         # Every crack use those parameters to launch hashcat
         self.common_parameters = [
             conf.hashcat_location,
-            "--weak-hash-threshold", "0",
             "-p", conf.separator,
             "-m", self.options['hashtype_selected'],
             "--session", self.sessionID,
