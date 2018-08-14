@@ -216,66 +216,67 @@ def generate_password_and_statistics_list(filename, complete_hash_list, hash_typ
 
             for line in crack_result_file.readlines():
                 # Return separator index if found and -1 otherwise.
-                if line.rfind(conf.separator) > 0:
-                    hash = line[:line.rfind(conf.separator)]
-                    pwd = line[line.rfind(conf.separator) + 1:len(line) - 1]
+                if line.rfind(conf.separator) == -1:
+                    continue
+                hash = line[:line.rfind(conf.separator)]
+                pwd = line[line.rfind(conf.separator) + 1:len(line) - 1]
 
-                    # In case of exotic characters in password, they are stored
-                    # as $HEX[...] and must be decoded
-                    pwd = hex_to_readable(pwd)
+                # In case of exotic characters in password, they are stored
+                # as $HEX[...] and must be decoded
+                pwd = hex_to_readable(pwd)
 
-                    # Password statistics
-                    length = len(pwd)
-                    lower = sum(char in string.ascii_lowercase for char in pwd)
-                    upper = sum(char in string.ascii_uppercase for char in pwd)
-                    digits = sum(char in string.digits for char in pwd)
-                    special = length - (lower + upper + digits)
+                # Password statistics
+                length = len(pwd)
+                lower = sum(char in string.ascii_lowercase for char in pwd)
+                upper = sum(char in string.ascii_uppercase for char in pwd)
+                digits = sum(char in string.digits for char in pwd)
+                special = length - (lower + upper + digits)
 
-                    method = get_method_from_filename(filename)
+                method = get_method_from_filename(filename)
 
-                    for line in complete_hash_list:
-                        # Trick to recompose both halves of an LM hash (hashcat
-                        # splits LM hashes into two halves)
-                        if hash_type == "LM":
-                            line = associate_LM_halves(
-                                line, hash, pwd, lower, upper, digits, special, method)
+                for line in complete_hash_list:
+                    # Trick to recompose both halves of an LM hash (hashcat
+                    # splits LM hashes into two halves)
+                    if hash_type == "LM":
+                        line = associate_LM_halves(
+                            line, hash, pwd, lower, upper, digits, special, method)
 
-                        # pwdump format treatment is special
-                        elif hash_type == "pwdump":
-                            if 'BruteForce_lm' in str(filename):
-                                line2 = [line[2], line[3], 0, 0, 0, 0, 0, line[10]]
-                                line2 = associate_LM_halves(
-                                    line2, hash, pwd, 0, 0, 0, 0, method)
-                                line[3] = line2[1]
-                                line[10] = line2[7]
-                            else:
-                                if line[0].lower() == hash.lower():
-                                    line[1] = pwd
-                                    line[4] = lower
-                                    line[5] = upper
-                                    line[6] = digits
-                                    line[7] = special
-                                    line[8] = len(pwd)
-                                    line[9] = method
-
-                        # Otherwise, just add the password and its stats to the
-                        # list
+                    # pwdump format treatment is special
+                    elif hash_type == "pwdump":
+                        if 'BruteForce_lm' in str(filename):
+                            line2 = [line[2], line[3], 0, 0, 0, 0, 0, line[10]]
+                            line2 = associate_LM_halves(
+                                line2, hash, pwd, 0, 0, 0, 0, method)
+                            line[3] = line2[1]
+                            line[10] = line2[7]
                         else:
                             if line[0].lower() == hash.lower():
                                 line[1] = pwd
-                                line[2] = lower
-                                line[3] = upper
-                                line[4] = digits
-                                line[5] = special
-                                line[6] = len(pwd)
-                                line[7] = method
+                                line[4] = lower
+                                line[5] = upper
+                                line[6] = digits
+                                line[7] = special
+                                line[8] = len(pwd)
+                                line[9] = method
 
-                    # Global crack consolidated statistics
-                    # Length
-                    maximum_length = max(maximum_length, length)
-                    # Trick for LM hashes
-                    if hash_type == "LM":
-                        maximum_length = 14
+                    # Otherwise, just add the password and its stats to the
+                    # list
+                    else:
+                        if line[0].lower() == hash.lower():
+                            line[1] = pwd
+                            line[2] = lower
+                            line[3] = upper
+                            line[4] = digits
+                            line[5] = special
+                            line[6] = len(pwd)
+                            line[7] = method
+
+                # Global crack consolidated statistics
+                # Length
+                maximum_length = max(maximum_length, length)
+                # Trick for LM hashes
+                if hash_type == "LM":
+                    maximum_length = 14
             crack_result_file.close()
 
     except IOError:
