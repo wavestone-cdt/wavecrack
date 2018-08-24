@@ -21,7 +21,7 @@ from cracker import app, celery
 from cracker.crackstatus import running_crack_nb, get_crack_status
 from cracker.filters import hex_to_readable
 from cracker import hashID
-from cracker.helper import requires_auth, check_perms, parameters_getter, get_hash_type_from_hash_id, associate_LM_halves, generate_password_and_statistics_list, get_memory_info, checking_mask_form, checking_crackMode
+from cracker.helper import requires_auth, check_perms, parameters_getter, get_hash_type_from_hash_id, generate_password_and_statistics_list, get_memory_info, checking_mask_form, checking_crackMode
 from cracker.tasks import hashcatCrack
 from cracker.log_parser import parse_log
 from collections import OrderedDict
@@ -186,14 +186,14 @@ def global_state():
     # Retrieve the GPU memory used for each crack (search by output file name)
     total_memory_used, total_memory_free, total_memory, memory_per_crack = \
         get_memory_info([_[4] for _ in running_crack_list])
-    
+
     running_crack_list_and_memory = []
     for crack in running_crack_list:
         try:
             running_crack_list_and_memory.append(crack + [memory_per_crack[crack[4]]])
         except KeyError:
             running_crack_list_and_memory.append(crack + [0])
-    
+
     return render_template(
         'crack_nb.html',
         title=u'Global status',
@@ -305,7 +305,7 @@ def new_hashes_validation():
             wordlist_dictionary=conf.wordlist_dictionary,
             separator=conf.separator,
             max_size=app.config['MAX_CONTENT_LENGTH'],
-            CRACK_DURATIONS=conf.CRACK_DURATIONS)    
+            CRACK_DURATIONS=conf.CRACK_DURATIONS)
 
     crackDuration = int(request.form.get('ChosenDuration', ''))
     if crackDuration not in conf.CRACK_DURATIONS:
@@ -402,14 +402,14 @@ def new_hashes_start():
         crackOption.append(['Dict', pwdump_wordlist_dict])
 
     for option in optionList :
-        
+
         if option == 'Keywords':
             keywords_list = []
             keywords_dict = OrderedDict([])
             keywords_dict[option] = []
             for rule in rules_list:
-                keywords_dict[rule] = []  
-            keywords_list = [option, keywords_dict]    
+                keywords_dict[rule] = []
+            keywords_list = [option, keywords_dict]
             crackOption.append(keywords_list)
 
         elif option == 'Wordlist':
@@ -562,7 +562,7 @@ def crack_details(crack_id):
     maximum_length = 0
     characters_complexity_list = [0, 0, 0, 0]
     percentage_diagram = 0
-    
+
     if hash_type == "pwdump":
         input_hash_file = os.path.join(conf.hashes_location, output_file_path) + 'pwdump'
         complete_hash_list_NTLM = []
@@ -576,8 +576,8 @@ def crack_details(crack_id):
                         # preparing for [hash, password, lower, upper, digits, special,
                         # length, method]
                         complete_hash_list_NTLM.append(
-                            [my_data[3], "*****PASSWORD NOT FOUND YET*****", my_data[2], "*****PASSWORD NOT FOUND YET*****", None, None, None, None, None, None, None])                  
-                        
+                            [my_data[3], "*****PASSWORD NOT FOUND YET*****", my_data[2], "*****PASSWORD NOT FOUND YET*****", None, None, None, None, None, None, None])
+
         except IOError:
             pass
 
@@ -589,11 +589,11 @@ def crack_details(crack_id):
         for file in result_files:
             if 'BruteForce_lm' in str(file):
                 length_useless = generate_password_and_statistics_list(
-                    file, complete_hash_list_NTLM, hash_type)  
+                    file, complete_hash_list_NTLM, hash_type)
             else:
                 length = generate_password_and_statistics_list(
                     file, complete_hash_list_NTLM, hash_type)
-                maximum_length = max(maximum_length, length)    
+                maximum_length = max(maximum_length, length)
 
         # Put the list of actual passwords found in passwords_list and generate
         # global statistics
@@ -653,11 +653,11 @@ def crack_details(crack_id):
                     # preparing for [hash, password, lower, upper, digits, special,
                     # length, method]
                     complete_hash_list.append(
-                        [hash, "*****PASSWORD NOT FOUND YET*****", None, None, None, None, None, None])   
-                  
+                        [hash, "*****PASSWORD NOT FOUND YET*****", None, None, None, None, None, None])
+
         except IOError:
             pass
- 
+
         # Find all the files beginning with file content
         result_files = glob.glob(output_file + '*')
         # Add the file path itself in the list
@@ -728,13 +728,13 @@ def crack_debug(crack_id):
 
     # Retrieval of the crack status based on the crack id and the output file
     task_state = get_crack_status(crack_id, output_file_name)
-    
+
     try:
         # Building the log file name from output file name
         with open(os.path.join(conf.log_location, output_file_name + ".log"), 'r+') as log_file:
             # Read the log file
             logs = log_file.read()
-        
+
     except IOError:
         logs = ""
 
@@ -743,7 +743,7 @@ def crack_debug(crack_id):
     try:
         cur = g.db.execute(
         'select options from cracksOption where crack_id=?', [crack_id])
-        option = cur.fetchone()[0] 
+        option = cur.fetchone()[0]
         crackOption = json.loads(option, object_pairs_hook=OrderedDict)
 
         parse_log(output_file_name, crackOption, hash_type)

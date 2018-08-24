@@ -72,13 +72,13 @@ def check_perms(f):
                 )
 
         return f(*args, **kwargs)
-    
+
     return decorated
 
 
 def check_access_authorization_for_a_crack_id(username, crack_id):
-    """ 
-        Control access of the user a specified crack_id 
+    """
+        Control access of the user a specified crack_id
     """
     cur = g.db.execute('select count(*) from cracks where crack_id=? and user_id=(select id from users where name = ?)',
                        (crack_id, username,))
@@ -105,8 +105,8 @@ def parameters_getter(parameter, parameters_list, beginsWith=""):
 
 
 def get_hash_type_from_hash_id(hash_id):
-    """ 
-        Returns the hash type in a human format from the hash_id 
+    """
+        Returns the hash type in a human format from the hash_id
     """
     hash_type = ""
     for hash_struct in hashcatconf.HASHS_LIST:
@@ -193,7 +193,7 @@ def associate_LM_halves(line, hash, pwd, lower, upper, digits, special, method):
 
 def write_to_file_without_errors(string, file_handler):
     """
-        Self explanatory 
+        Self explanatory
     """
     try:
         # hashcat bug that writes gigbytes of "bug, how should this happen????" in the log files
@@ -335,7 +335,7 @@ def unslugifyer(wordlist):
 
     return wordlist
 
-    
+
 def get_memory_info(cracks_filenames=[]):
     """
         Retrieves Nvidia GPU memory information from the command nvidia-smi
@@ -344,7 +344,7 @@ def get_memory_info(cracks_filenames=[]):
     memory_per_crack = {}
     try:
         nvidia_memory_info = check_output(["nvidia-smi", "--query-gpu=memory.used,memory.free,memory.total", "--format=csv,noheader,nounits"])
-        
+
         for line in nvidia_memory_info.splitlines():
             # split along commas and strip empty whitespaces
             line = [ int(_.strip()) for _ in line.split(',')]
@@ -354,11 +354,11 @@ def get_memory_info(cracks_filenames=[]):
 
     except (OSError, CalledProcessError):
         pass
-        
+
     memory_per_pid = {}
     try:
         nvidia_process_info = check_output(["nvidia-smi", "--query-compute-apps=pid,used_memory", "--format=csv,noheader,nounits"])
-        
+
         for line in nvidia_process_info.splitlines():
             # split along commas and strip empty whitespaces
             line = [ int(_.strip()) for _ in line.split(',')]
@@ -366,20 +366,20 @@ def get_memory_info(cracks_filenames=[]):
                 memory_per_pid[line[0]] += line[1]
             except KeyError:
                 memory_per_pid[line[0]] = line[1]
-            
+
     except (OSError, CalledProcessError):
         pass
-        
+
     try:
         for filename in cracks_filenames:
-            # Retrieve the PID from the filename 
+            # Retrieve the PID from the filename
             ps_process = Popen(["ps", "auxww"], stdout=PIPE)
             ps_output = Popen(["grep", conf.hashcat_location],
                               stdin=ps_process.stdout, stdout=PIPE)
             grep_output = check_output(
                 ["grep", filename], stdin=ps_output.stdout)
             PID = int(grep_output.split()[1])
-            
+
             # Populate the dictionary with the GPU memory used by each crack
             try:
                 memory_per_crack[filename] = memory_per_pid[PID]
@@ -387,9 +387,9 @@ def get_memory_info(cracks_filenames=[]):
                 memory_per_crack[filename] = 0
     except (OSError, CalledProcessError):
         pass
-        
+
     return total_memory_used, total_memory_free, total_memory, memory_per_crack
-    
+
 def checking_mask_form(var):
     for car in var:
         if car not in ['?', 'l','u','d','s','a','b', '']:
