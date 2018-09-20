@@ -260,7 +260,7 @@ def generate_password_and_statistics_list(filename, complete_hash_list, hash_typ
                                     upper=upper, digits=digits, special=special)
     except IOError:
         # Exception : if no password has been found, the file doesn't exist
-        pass
+        return maximum_length
 
     for line in complete_hash_list:
         hash = line[0].lower()
