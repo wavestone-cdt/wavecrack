@@ -72,13 +72,13 @@ def check_perms(f):
                 )
 
         return f(*args, **kwargs)
-    
+
     return decorated
 
 
 def check_access_authorization_for_a_crack_id(username, crack_id):
-    """ 
-        Control access of the user a specified crack_id 
+    """
+        Control access of the user a specified crack_id
     """
     cur = g.db.execute('select count(*) from cracks where crack_id=? and user_id=(select id from users where name = ?)',
                        (crack_id, username,))
@@ -105,8 +105,8 @@ def parameters_getter(parameter, parameters_list, beginsWith=""):
 
 
 def get_hash_type_from_hash_id(hash_id):
-    """ 
-        Returns the hash type in a human format from the hash_id 
+    """
+        Returns the hash type in a human format from the hash_id
     """
     hash_type = ""
     for hash_struct in hashcatconf.HASHS_LIST:
@@ -117,16 +117,17 @@ def get_hash_type_from_hash_id(hash_id):
     return hash_type
 
 
-def associate_LM_halves(line, hash, pwd, lower, upper, digits, special, method):
+def associate_LM_halves(line, cracked_hashs, method):
     """
         Tranfer cracking parameters across pages
     """
     password_not_found = "*****PASSWORD NOT FOUND YET*****"
     empty_password = "*empty*"
     unknown_password = "???????"
+    first_half = line[0][0:16].lower()
+    second_half = line[0][16:32].lower()
 
-    if line[0][0:16].lower() == "AAD3B435B51404EE".lower():
-
+    if first_half == "aad3b435b51404ee":
         if line[1] == password_not_found:
             line[1] = empty_password + unknown_password
             line[2] = 0
@@ -139,7 +140,7 @@ def associate_LM_halves(line, hash, pwd, lower, upper, digits, special, method):
             line[1] = empty_password + line[1][7:14]
             line[7] = "Empty hash (1st half)" + line[7]
 
-    if line[0][16:32].lower() == "AAD3B435B51404EE".lower():
+    if second_half == "aad3b435b51404ee":
         if line[1] == password_not_found:
             line[1] = unknown_password + empty_password
             line[2] = 0
@@ -152,14 +153,22 @@ def associate_LM_halves(line, hash, pwd, lower, upper, digits, special, method):
             line[1] = line[1][:-7] + empty_password
             line[7] = line[7] + " - Empty hash (2nd half)"
 
-    if line[0][0:16].lower() == hash.lower():
+    if first_half in cracked_hashs:
+        pwd_stats = cracked_hashs[first_half]
+        pwd = pwd_stats["pwd"]
+        lower = pwd_stats["lower"]
+        upper = pwd_stats["upper"]
+        digits = pwd_stats["digits"]
+        special = pwd_stats["special"]
+        length = pwd_stats["length"]
+
         if line[1] == password_not_found:
             line[1] = pwd + unknown_password
             line[2] = lower
             line[3] = upper
             line[4] = digits
             line[5] = special
-            line[6] = len(pwd)
+            line[6] = length
             line[7] = method + " (1st half)"
         else:
             line[1] = pwd + line[1][7:14]
@@ -167,17 +176,25 @@ def associate_LM_halves(line, hash, pwd, lower, upper, digits, special, method):
             line[3] += upper
             line[4] += digits
             line[5] += special
-            line[6] += len(pwd)
+            line[6] += length
             line[7] = method + " (1st half) - " + line[7]
 
-    if line[0][16:32].lower() == hash.lower():
+    if second_half in cracked_hashs:
+        pwd_stats = cracked_hashs[second_half]
+        pwd = pwd_stats["pwd"]
+        lower = pwd_stats["lower"]
+        upper = pwd_stats["upper"]
+        digits = pwd_stats["digits"]
+        special = pwd_stats["special"]
+        length = pwd_stats["length"]
+
         if line[1] == password_not_found:
             line[1] = unknown_password + pwd
             line[2] = lower
             line[3] = upper
             line[4] = digits
             line[5] = special
-            line[6] = len(pwd)
+            line[6] = length
             line[7] = method + " (2nd half)"
         else:
             line[1] = line[1][0:7] + pwd
@@ -185,7 +202,7 @@ def associate_LM_halves(line, hash, pwd, lower, upper, digits, special, method):
             line[3] += upper
             line[4] += digits
             line[5] += special
-            line[6] += len(pwd)
+            line[6] += length
             line[7] = line[7] + " - " + method + " (2nd half)"
 
     return line
@@ -193,7 +210,7 @@ def associate_LM_halves(line, hash, pwd, lower, upper, digits, special, method):
 
 def write_to_file_without_errors(string, file_handler):
     """
-        Self explanatory 
+        Self explanatory
     """
     try:
         # hashcat bug that writes gigbytes of "bug, how should this happen????" in the log files
@@ -211,76 +228,85 @@ def generate_password_and_statistics_list(filename, complete_hash_list, hash_typ
         hash list with the cracked password and its stats
     """
     maximum_length = 0
+    method = get_method_from_filename(filename)
     try:
         with open(filename, "r") as crack_result_file:
 
-            for line in crack_result_file.readlines():
+            cracked_hashs = dict()
+            for crack_entry in crack_result_file:
                 # Return separator index if found and -1 otherwise.
-                if line.rfind(conf.separator) > 0:
-                    hash = line[:line.rfind(conf.separator)]
-                    pwd = line[line.rfind(conf.separator) + 1:len(line) - 1]
+                if crack_entry.rfind(conf.separator) == -1:
+                    continue
+                #remove any leading/trailing whitesace/newline
+                crack_entry = crack_entry.strip()
 
-                    # In case of exotic characters in password, they are stored
-                    # as $HEX[...] and must be decoded
-                    pwd = hex_to_readable(pwd)
+                hash, pwd = crack_entry.rsplit(conf.separator, 1)
 
-                    # Password statistics
-                    length = len(pwd)
-                    lower = sum(char in string.ascii_lowercase for char in pwd)
-                    upper = sum(char in string.ascii_uppercase for char in pwd)
-                    digits = sum(char in string.digits for char in pwd)
-                    special = length - (lower + upper + digits)
+                # In case of exotic characters in password, they are stored
+                # as $HEX[...] and must be decoded
+                pwd = hex_to_readable(pwd)
 
-                    method = get_method_from_filename(filename)
+                # Lowercase the hash once and for all
+                hash = hash.lower()
 
-                    for line in complete_hash_list:
-                        # Trick to recompose both halves of an LM hash (hashcat
-                        # splits LM hashes into two halves)
-                        if hash_type == "LM":
-                            line = associate_LM_halves(
-                                line, hash, pwd, lower, upper, digits, special, method)
+                # Password statistics
+                length = len(pwd)
+                lower = sum(char in string.ascii_lowercase for char in pwd)
+                upper = sum(char in string.ascii_uppercase for char in pwd)
+                digits = sum(char in string.digits for char in pwd)
+                special = length - (lower + upper + digits)
 
-                        # pwdump format treatment is special
-                        elif hash_type == "pwdump":
-                            if 'BruteForce_lm' in str(filename):
-                                line2 = [line[2], line[3], 0, 0, 0, 0, 0, line[10]]
-                                line2 = associate_LM_halves(
-                                    line2, hash, pwd, 0, 0, 0, 0, method)
-                                line[3] = line2[1]
-                                line[10] = line2[7]
-                            else:
-                                if line[0].lower() == hash.lower():
-                                    line[1] = pwd
-                                    line[4] = lower
-                                    line[5] = upper
-                                    line[6] = digits
-                                    line[7] = special
-                                    line[8] = len(pwd)
-                                    line[9] = method
-
-                        # Otherwise, just add the password and its stats to the
-                        # list
-                        else:
-                            if line[0].lower() == hash.lower():
-                                line[1] = pwd
-                                line[2] = lower
-                                line[3] = upper
-                                line[4] = digits
-                                line[5] = special
-                                line[6] = len(pwd)
-                                line[7] = method
-
-                    # Global crack consolidated statistics
-                    # Length
-                    maximum_length = max(maximum_length, length)
-                    # Trick for LM hashes
-                    if hash_type == "LM":
-                        maximum_length = 14
-            crack_result_file.close()
-
+                cracked_hashs[hash] = dict(pwd=pwd, length=length, lower=lower,
+                                    upper=upper, digits=digits, special=special)
     except IOError:
         # Exception : if no password has been found, the file doesn't exist
-        pass
+        return maximum_length
+
+    for line in complete_hash_list:
+        hash = line[0].lower()
+
+        # Trick to recompose both halves of an LM hash (hashcat
+        # splits LM hashes into two halves)
+        if hash_type == "LM":
+            line = associate_LM_halves(line, cracked_hashs, method)
+
+        # pwdump format treatment is special
+        elif hash_type == "pwdump":
+            if 'BruteForce_lm' in str(filename):
+                line2 = [line[2], line[3], 0, 0, 0, 0, 0, line[10]]
+                line2 = associate_LM_halves(line2, cracked_hashs, method)
+                line[3] = line2[1]
+                line[10] = line2[7]
+            else:
+                if hash in cracked_hashs:
+                    pwd_stats = cracked_hashs[hash]
+                    line[1] = pwd_stats["pwd"]
+                    line[4] = pwd_stats["lower"]
+                    line[5] = pwd_stats["upper"]
+                    line[6] = pwd_stats["digits"]
+                    line[7] = pwd_stats["special"]
+                    line[8] = pwd_stats["length"]
+                    line[9] = method
+
+        # Otherwise, just add the password and its stats to the
+        # list
+        else:
+            if hash in cracked_hashs:
+                pwd_stats = cracked_hashs[hash]
+                line[1] = pwd_stats["pwd"]
+                line[2] = pwd_stats["lower"]
+                line[3] = pwd_stats["upper"]
+                line[4] = pwd_stats["digits"]
+                line[5] = pwd_stats["special"]
+                line[6] = pwd_stats["length"]
+                line[7] = method
+
+    # Global crack consolidated statistics
+    # Length
+    maximum_length = max((pwd_stats["length"] for pwd_stats in cracked_hashs.values()))
+    # Trick for LM hashes
+    if hash_type == "LM":
+        maximum_length = 14
 
     return maximum_length
 
@@ -334,7 +360,7 @@ def unslugifyer(wordlist):
 
     return wordlist
 
-    
+
 def get_memory_info(cracks_filenames=[]):
     """
         Retrieves Nvidia GPU memory information from the command nvidia-smi
@@ -343,7 +369,7 @@ def get_memory_info(cracks_filenames=[]):
     memory_per_crack = {}
     try:
         nvidia_memory_info = check_output(["nvidia-smi", "--query-gpu=memory.used,memory.free,memory.total", "--format=csv,noheader,nounits"])
-        
+
         for line in nvidia_memory_info.splitlines():
             # split along commas and strip empty whitespaces
             line = [ int(_.strip()) for _ in line.split(',')]
@@ -353,11 +379,11 @@ def get_memory_info(cracks_filenames=[]):
 
     except (OSError, CalledProcessError):
         pass
-        
+
     memory_per_pid = {}
     try:
         nvidia_process_info = check_output(["nvidia-smi", "--query-compute-apps=pid,used_memory", "--format=csv,noheader,nounits"])
-        
+
         for line in nvidia_process_info.splitlines():
             # split along commas and strip empty whitespaces
             line = [ int(_.strip()) for _ in line.split(',')]
@@ -365,20 +391,20 @@ def get_memory_info(cracks_filenames=[]):
                 memory_per_pid[line[0]] += line[1]
             except KeyError:
                 memory_per_pid[line[0]] = line[1]
-            
+
     except (OSError, CalledProcessError):
         pass
-        
+
     try:
         for filename in cracks_filenames:
-            # Retrieve the PID from the filename 
+            # Retrieve the PID from the filename
             ps_process = Popen(["ps", "auxww"], stdout=PIPE)
             ps_output = Popen(["grep", conf.hashcat_location],
                               stdin=ps_process.stdout, stdout=PIPE)
             grep_output = check_output(
                 ["grep", filename], stdin=ps_output.stdout)
             PID = int(grep_output.split()[1])
-            
+
             # Populate the dictionary with the GPU memory used by each crack
             try:
                 memory_per_crack[filename] = memory_per_pid[PID]
@@ -386,9 +412,9 @@ def get_memory_info(cracks_filenames=[]):
                 memory_per_crack[filename] = 0
     except (OSError, CalledProcessError):
         pass
-        
+
     return total_memory_used, total_memory_free, total_memory, memory_per_crack
-    
+
 def checking_mask_form(var):
     for car in var:
         if car not in ['?', 'l','u','d','s','a','b', '']:
