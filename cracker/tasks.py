@@ -173,11 +173,11 @@ def hashcatCrack(self, selectedHashtype, hashes, crackOptions, dicoOptions, dico
                             hash = line[index_separator + 1:] + "\n"
                         else:
                             hash = line                        
-                        storage.write(hash.lower())
-                        hashes_file.write(hash.lower())
+                        storage.write(hash)
+                        hashes_file.write(hash)
                 else:
-                    storage.write(hashes.lower())
-                    hashes_file.write(hashes.lower())
+                    storage.write(hashes)
+                    hashes_file.write(hashes)
 
             hashes_file.flush()
 
