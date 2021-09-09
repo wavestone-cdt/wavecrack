@@ -1,7 +1,0 @@
-import sys, os
-# Add the directory to the PATH so that Python
-# is able to find the cracker module
-here = os.path.dirname(__file__)
-sys.path.insert(0, here)
-
-from cracker import app as application
